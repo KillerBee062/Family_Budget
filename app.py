@@ -46,17 +46,6 @@ st.markdown("""
             color: white;
             border: none;
         }
-        .stButton > button:active {
-            transform: scale(0.98);
-        }
-
-        /* Input Styling */
-        .stTextInput > div > div, .stSelectbox > div > div, .stDateInput > div > div, .stNumberInput > div > div {
-            border-radius: 10px;
-            border-color: #E5E5EA;
-            background-color: #F2F2F7;
-            color: #1c1c1e;
-        }
         
         /* Hide deploy button */
         #MainMenu {visibility: hidden;}
@@ -74,15 +63,15 @@ def load_data():
     try:
         df_budgets = conn.read(worksheet="Budgets", ttl=0)
     except:
-        # Fallback if sheet is empty or doesn't exist yet
         df_budgets = pd.DataFrame(columns=["Category", "Sub_Category", "Monthly_Limit"])
 
     # Load Expenses
     try:
         df_expenses = conn.read(worksheet="Expenses", ttl=0)
-        # Ensure date column is datetime
         if not df_expenses.empty:
             df_expenses['Date'] = pd.to_datetime(df_expenses['Date'])
+            # Sort by Date descending so newest shows first
+            df_expenses = df_expenses.sort_values(by="Date", ascending=False)
     except:
         df_expenses = pd.DataFrame(columns=["Date", "Item", "Category", "Sub_Category", "Amount", "Paid_By"])
     
@@ -92,9 +81,7 @@ def save_expense(new_entry, current_df):
     try:
         # Append new row
         updated_df = pd.concat([current_df, pd.DataFrame([new_entry])], ignore_index=True)
-        # Sort by date descending
         updated_df = updated_df.sort_values(by="Date", ascending=False)
-        # Update Google Sheet
         conn.update(worksheet="Expenses", data=updated_df)
         st.cache_data.clear()
         return True
@@ -118,143 +105,96 @@ tab1, tab2 = st.tabs(["📝 Log Expense", "📊 Dashboard"])
 with tab1:
     st.markdown("### New Transaction")
     
-    # Check if budgets exist
     if df_budgets.empty:
-        st.warning("Please configure your 'Budgets' sheet in Google Sheets first (Columns: Category, Sub_Category, Monthly_Limit).")
+        st.warning("Please configure your 'Budgets' sheet in Google Sheets first.")
     else:
-        # 1. Date & Item
-        col1, col2 = st.columns(2)
-        with col1:
-            date_input = st.date_input("Date", datetime.now())
-        with col2:
-            item_input = st.text_input("Item Description", placeholder="e.g. Grocery")
+        with st.form("expense_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                date_input = st.date_input("Date", datetime.now())
+            with col2:
+                item_input = st.text_input("Item Description", placeholder="e.g. Grocery")
 
-        # 2. Dynamic Categories
-        # Get unique Categories (Groups)
-        categories = df_budgets['Category'].unique().tolist()
-        
-        # Select Category
-        selected_category = st.selectbox("Category Group", options=categories, index=0 if categories else None)
-        
-        # Filter Sub-Categories based on selection
-        if selected_category:
-            sub_categories = df_budgets[df_budgets['Category'] == selected_category]['Sub_Category'].tolist()
-        else:
-            sub_categories = []
+            # Dynamic Categories
+            categories = df_budgets['Category'].unique().tolist()
+            selected_category = st.selectbox("Category Group", options=categories)
             
-        selected_sub_category = st.selectbox("Sub-Category", options=sub_categories)
+            sub_categories = []
+            if selected_category:
+                sub_categories = df_budgets[df_budgets['Category'] == selected_category]['Sub_Category'].tolist()
+            
+            selected_sub_category = st.selectbox("Sub-Category", options=sub_categories)
 
-        # 3. Amount & Payer
-        col3, col4 = st.columns(2)
-        with col3:
-            amount_input = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.2f")
-        with col4:
-            payer_input = st.selectbox("Paid By", ["Hadi", "Ruhi"], index=0)
+            col3, col4 = st.columns(2)
+            with col3:
+                amount_input = st.number_input("Amount (৳)", min_value=0.0, step=10.0)
+            with col4:
+                payer_input = st.radio("Paid By", ["Hadi", "Ruhi"], horizontal=True)
 
-        # 4. Submit Button
-        if st.button("Add Expense"):
-            if not item_input:
-                st.error("Please enter an item description.")
-            elif amount_input <= 0:
-                st.error("Amount must be greater than 0.")
-            elif not selected_category or not selected_sub_category:
-                st.error("Please select a valid category.")
-            else:
-                new_entry = {
-                    "Date": date_input.strftime("%Y-%m-%d"),
-                    "Item": item_input,
-                    "Category": selected_category,
-                    "Sub_Category": selected_sub_category,
-                    "Amount": amount_input,
-                    "Paid_By": payer_input
-                }
-                
-                with st.spinner("Saving to Cloud..."):
-                    if save_expense(new_entry, df_expenses):
-                        st.success("Expense added successfully!")
-                        st.balloons()
-                        # Force refresh to clear inputs (Streamlit trick)
-                        # st.rerun() # Uncomment for immediate reload, though it clears the success message quickly
+            if st.form_submit_button("Save Expense"):
+                if not item_input or amount_input <= 0:
+                    st.error("Please enter item name and amount.")
+                else:
+                    new_entry = {
+                        "Date": date_input.strftime("%Y-%m-%d"),
+                        "Item": item_input,
+                        "Category": selected_category,
+                        "Sub_Category": selected_sub_category,
+                        "Amount": amount_input,
+                        "Paid_By": payer_input
+                    }
+                    
+                    with st.spinner("Saving..."):
+                        if save_expense(new_entry, df_expenses):
+                            st.toast("Saved!", icon="✅")
+                            st.rerun()
 
 # ==========================
 # TAB 2: DASHBOARD
 # ==========================
 with tab2:
-    if df_expenses.empty or df_budgets.empty:
-        st.info("No data available yet. Start logging expenses!")
+    if df_expenses.empty:
+        st.info("No data available yet.")
     else:
-        # --- DATA PROCESSING ---
         # Filter for current month
         current_month = datetime.now().month
         current_year = datetime.now().year
         
-        df_expenses['Date_Dt'] = pd.to_datetime(df_expenses['Date'])
-        mask = (df_expenses['Date_Dt'].dt.month == current_month) & (df_expenses['Date_Dt'].dt.year == current_year)
+        mask = (df_expenses['Date'].dt.month == current_month) & (df_expenses['Date'].dt.year == current_year)
         monthly_expenses = df_expenses.loc[mask]
 
-        # Aggregate Actual Spending
         total_spent = monthly_expenses['Amount'].sum()
-        
-        # Aggregate Budget Limits
         total_budget = df_budgets['Monthly_Limit'].sum()
         remaining = total_budget - total_spent
 
-        # --- TOP METRICS ---
-        col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("Total Budget", f"৳{total_budget:,.0f}")
-        col_m2.metric("Spent", f"৳{total_spent:,.0f}")
-        col_m3.metric("Remaining", f"৳{remaining:,.0f}", delta_color="normal" if remaining > 0 else "inverse")
+        # Metrics
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Budget", f"৳{total_budget:,.0f}")
+        col2.metric("Spent", f"৳{total_spent:,.0f}")
+        col3.metric("Left", f"৳{remaining:,.0f}", delta_color="normal" if remaining > 0 else "inverse")
         
-        # Apply fancy card styling
-        style_metric_cards(background_color="#FFFFFF", border_left_color="#007AFF", border_radius_px=12, box_shadow=True)
+        style_metric_cards(background_color="#FFFFFF", border_left_color="#007AFF", box_shadow=True)
 
         st.divider()
 
-        # --- CHARTS ---
+        # Charts
         c1, c2 = st.columns(2)
-
         with c1:
-            st.markdown("##### 🥧 By Category Group")
             if not monthly_expenses.empty:
                 pie_data = monthly_expenses.groupby('Category')['Amount'].sum().reset_index()
                 fig_pie = px.pie(pie_data, values='Amount', names='Category', hole=0.4)
-                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=250, showlegend=False)
+                fig_pie.update_layout(height=250, margin=dict(t=0, b=0, l=0, r=0), showlegend=False)
                 st.plotly_chart(fig_pie, use_container_width=True)
 
         with c2:
-            st.markdown("##### 💳 Spending by Person")
             if not monthly_expenses.empty:
                 bar_data = monthly_expenses.groupby('Paid_By')['Amount'].sum().reset_index()
-                fig_bar = px.bar(bar_data, x='Paid_By', y='Amount', color='Paid_By', text_auto='.2s')
-                fig_bar.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=250, xaxis_title=None, showlegend=False)
-                fig_bar.update_traces(textposition='outside')
+                fig_bar = px.bar(bar_data, x='Paid_By', y='Amount', color='Paid_By',
+                               color_discrete_map={'Hadi': '#007AFF', 'Ruhi': '#FF2D55'})
+                fig_bar.update_layout(height=250, margin=dict(t=0, b=0, l=0, r=0), xaxis_title=None, showlegend=False)
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- CATEGORY BREAKDOWN LIST ---
-        st.markdown("##### 📊 Detailed Breakdown")
-        
-        # Merge Expenses with Budgets
-        spent_by_sub = monthly_expenses.groupby('Sub_Category')['Amount'].sum().reset_index()
-        merged_df = pd.merge(df_budgets, spent_by_sub, on='Sub_Category', how='left').fillna(0)
-        merged_df['Percent'] = (merged_df['Amount'] / merged_df['Monthly_Limit']) * 100
-        
-        # Display as a clean list with progress bars
-        for index, row in merged_df.iterrows():
-            with st.container():
-                c_name, c_amt = st.columns([3, 1])
-                c_name.write(f"**{row['Sub_Category']}** ({row['Category']})")
-                c_amt.write(f"৳{row['Amount']:,.0f} / {row['Monthly_Limit']:,.0f}")
-                
-                # Custom Progress Bar logic
-                pct = min(row['Percent'] / 100, 1.0)
-                color = "green"
-                if pct > 0.9: color = "red"
-                elif pct > 0.75: color = "orange"
-                
-                st.progress(pct, text=None)
-                st.write("") # Spacer
-
-        # --- RECENT HISTORY ---
+        # Recent Transactions
         st.markdown("##### 🕒 Recent Transactions")
         st.dataframe(
             monthly_expenses[['Date', 'Item', 'Sub_Category', 'Amount', 'Paid_By']].head(5),
