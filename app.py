@@ -16,7 +16,7 @@ st.set_page_config(
     page_title="Family Budget Tracker",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Collapsed by default for mobile
+    initial_sidebar_state="collapsed"  # Collapsed by default so it doesn't block content
 )
 
 # iOS-style CSS - Mobile optimized for iPhone
@@ -41,13 +41,19 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Main content area - Mobile responsive */
+    /* Main content area - Mobile responsive, ensure sidebar doesn't block */
     .main .block-container {
         padding-top: 1rem;
         padding-bottom: 2rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
-        max-width: 100%;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+    }
+    
+    /* When sidebar is open, ensure main content still accessible */
+    [data-testid="stSidebar"][aria-expanded="true"] ~ .main {
+        margin-left: 0 !important;
     }
     
     /* Mobile optimizations */
@@ -60,6 +66,22 @@ st.markdown("""
         [data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
+        }
+        
+        /* Sidebar overlay on mobile - doesn't push content */
+        [data-testid="stSidebar"] {
+            position: fixed !important;
+            z-index: 999 !important;
+            height: 100vh !important;
+            top: 0 !important;
+            left: 0 !important;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+        }
+        
+        /* Main content stays full width on mobile */
+        .main {
+            margin-left: 0 !important;
+            width: 100% !important;
         }
         
         /* Larger touch targets for mobile */
@@ -204,9 +226,19 @@ st.markdown("""
         color: white;
     }
     
-    /* Sidebar - mobile optimized */
+    /* Sidebar styling - Streamlit handles positioning, we just style it */
     [data-testid="stSidebar"] {
         background-color: white;
+    }
+    
+    /* Ensure main content uses available space properly */
+    .main {
+        flex: 1 1 auto;
+    }
+    
+    /* When sidebar is collapsed, main content should use full width */
+    [data-testid="stSidebar"][aria-expanded="false"] ~ .main {
+        margin-left: 0;
     }
     
     @media (max-width: 768px) {
@@ -476,49 +508,24 @@ def main():
     total_spent = sum(e['amount'] for e in current_month_expenses)
     remaining = total_budget_limit - total_spent
     
-    # iOS-style Header with Settings Button
-    col_header1, col_header2 = st.columns([4, 1])
-    
-    with col_header1:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    padding: 2rem 1.5rem; 
-                    border-radius: 16px; 
-                    margin-bottom: 2rem;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                    position: relative;">
-            <h1 style="color: white; 
-                       font-size: 32px; 
-                       font-weight: 700; 
-                       margin: 0 0 0.5rem 0;
-                       letter-spacing: -1px;">💰 Family Budget Tracker</h1>
-            <p style="color: rgba(255,255,255,0.9); 
-                      font-size: 14px; 
-                      margin: 0;
-                      font-weight: 500;">{current_month} {current_year}{' • Hi, ' + user + '!' if user else ''}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_header2:
-        st.markdown("""
-        <div style="padding-top: 2rem;">
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Settings button that opens sidebar
-        if st.button("⚙️ Settings", use_container_width=True, type="secondary"):
-            # Note: Streamlit doesn't allow programmatic sidebar control,
-            # but this button makes it clear where settings are
-            st.info("💡 Open the sidebar (☰) to access Settings & Sync")
-        
-        # Show sync status if URL is configured
-        if google_script_url:
-            if last_synced:
-                st.caption(f"🔄 Synced: {last_synced[11:16]}")
-            else:
-                st.caption("🔄 Not synced")
-        else:
-            st.caption("☁️ No sync URL")
+    # iOS-style Header
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 2rem 1.5rem; 
+                border-radius: 16px; 
+                margin-bottom: 2rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <h1 style="color: white; 
+                   font-size: 32px; 
+                   font-weight: 700; 
+                   margin: 0 0 0.5rem 0;
+                   letter-spacing: -1px;">💰 Family Budget Tracker</h1>
+        <p style="color: rgba(255,255,255,0.9); 
+                  font-size: 14px; 
+                  margin: 0;
+                  font-weight: 500;">{current_month} {current_year}{' • Hi, ' + user + '!' if user else ''}</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Sidebar for settings
     with st.sidebar:
