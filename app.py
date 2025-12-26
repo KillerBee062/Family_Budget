@@ -16,7 +16,7 @@ st.set_page_config(
     page_title="Family Budget Tracker",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Collapsed by default so it doesn't block content
+    initial_sidebar_state="collapsed"  # Collapsed by default
 )
 
 # iOS-style CSS - Mobile optimized for iPhone
@@ -68,14 +68,16 @@ st.markdown("""
             min-width: 100% !important;
         }
         
-        /* Sidebar overlay on mobile - doesn't push content */
+        /* Completely hide sidebar on mobile */
         [data-testid="stSidebar"] {
-            position: fixed !important;
-            z-index: 999 !important;
-            height: 100vh !important;
-            top: 0 !important;
-            left: 0 !important;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+            display: none !important;
+        }
+        
+        /* Hide sidebar toggle button on mobile */
+        [data-testid="collapsedControl"],
+        button[aria-label*="sidebar"],
+        button[data-testid*="sidebar"] {
+            display: none !important;
         }
         
         /* Main content stays full width on mobile */
@@ -127,10 +129,6 @@ st.markdown("""
             font-size: 24px;
         }
         
-        /* Sidebar - full screen on mobile */
-        [data-testid="stSidebar"] {
-            min-width: 100% !important;
-        }
     }
     
     /* Headers */
@@ -242,8 +240,16 @@ st.markdown("""
     }
     
     @media (max-width: 768px) {
-        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-            padding: 1rem;
+        /* Completely hide sidebar on mobile */
+        [data-testid="stSidebar"] {
+            display: none !important;
+        }
+        
+        /* Hide sidebar toggle button on mobile */
+        [data-testid="collapsedControl"],
+        button[aria-label*="sidebar"],
+        button[data-testid*="sidebar"] {
+            display: none !important;
         }
     }
     
@@ -527,83 +533,9 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar for settings
+    # Sidebar is now empty - all settings moved to Settings tab
     with st.sidebar:
-        st.markdown("""
-        <div style="padding: 1rem 0;">
-            <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 1.5rem 0;">⚙️ Settings</h2>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # User selection
-        st.markdown("### 👤 User Profile")
-        selected_user = st.radio(
-            "Select User",
-            ["Hadi", "Ruhi"],
-            index=0 if user == "Hadi" else (1 if user == "Ruhi" else 0),
-            key="user_select",
-            horizontal=True
-        )
-        
-        if user:
-            st.info(f"✓ Currently logged in as **{user}**")
-        
-        if selected_user != user:
-            save_setting('user', selected_user)
-            st.rerun()
-        
-        st.divider()
-        
-        # Cloud Sync Section
-        st.markdown("### ☁️ Google Sheets Sync")
-        st.markdown("**Connect to Google Sheets:**")
-        
-        sync_url = st.text_input(
-            "Google Apps Script URL",
-            value=google_script_url,
-            placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec",
-            key="sync_url",
-            help="Deploy your Google Apps Script as a web app and paste the URL here"
-        )
-        
-        col_save, col_sync = st.columns(2)
-        with col_save:
-            if sync_url != google_script_url:
-                if st.button("💾 Save URL", use_container_width=True):
-                    save_setting('googleScriptUrl', sync_url)
-                    st.success("URL saved!")
-                    st.rerun()
-            elif sync_url:
-                st.success("✓ URL saved")
-        
-        with col_sync:
-            if sync_url:
-                if st.button("🔄 Sync Now", use_container_width=True):
-                    with st.spinner("Syncing..."):
-                        if sync_from_cloud(sync_url):
-                            st.success("Sync completed!")
-                            st.rerun()
-                        else:
-                            st.error("Sync failed. Check your URL.")
-        
-        if last_synced:
-            st.info(f"🕒 Last synced: {last_synced[:19]}")
-        
-        if not sync_url:
-            st.markdown("""
-            <div style="background-color: #FFF3CD; 
-                        border-left: 4px solid #FF9500; 
-                        padding: 1rem; 
-                        border-radius: 8px; 
-                        margin-top: 1rem;">
-                <p style="margin: 0; font-size: 13px; color: #856404;">
-                    <strong>How to set up Google Sheets sync:</strong><br>
-                    1. Create a Google Apps Script<br>
-                    2. Deploy it as a web app<br>
-                    3. Paste the deployment URL above
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+        st.empty()  # Empty sidebar
     
     # iOS-style Metrics with custom colors
     st.markdown("""
@@ -677,11 +609,19 @@ def main():
     
     st.divider()
     
-    # Tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "⚙️ Budget Config"])
+    # Settings button in header area
+    st.markdown("""
+    <div style="text-align: right; margin-bottom: 1rem;">
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Tabs - including Settings tab
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "⚙️ Budget Config", "⚙️ Settings & Sync"])
     
     with tab1:
-        show_expense_form(category_budgets, selected_user)
+        # Get current user from settings for expense form
+        current_user, _, _ = get_settings()
+        show_expense_form(category_budgets, current_user)
     
     with tab2:
         show_dashboard(current_month_expenses, all_expenses, category_budgets)
@@ -691,6 +631,9 @@ def main():
     
     with tab4:
         show_budget_config(category_budgets)
+    
+    with tab5:
+        show_settings_page(user, google_script_url, last_synced, category_budgets)
 
 def show_expense_form(category_budgets, current_user):
     st.markdown("""
@@ -1139,6 +1082,170 @@ def show_history(all_expenses, category_budgets):
                             st.rerun()
                 
                 st.divider()
+
+def show_settings_page(user, google_script_url, last_synced, category_budgets):
+    st.markdown("""
+    <div style="background: white; 
+                padding: 1.5rem; 
+                border-radius: 16px; 
+                margin-bottom: 1.5rem;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <h2 style="margin: 0 0 1rem 0; font-size: 24px; font-weight: 700;">⚙️ Settings & Sync</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # User selection
+    st.markdown("### 👤 User Profile")
+    selected_user = st.radio(
+        "Select User",
+        ["Hadi", "Ruhi"],
+        index=0 if user == "Hadi" else (1 if user == "Ruhi" else 0),
+        key="settings_user_select",
+        horizontal=True
+    )
+    
+    if selected_user != user:
+        save_setting('user', selected_user)
+        st.success(f"✓ User set to {selected_user}")
+        st.rerun()
+    
+    if user:
+        st.info(f"✓ Currently logged in as **{user}**")
+    
+    st.divider()
+    
+    # Cloud Sync Section
+    st.markdown("### ☁️ Google Sheets Sync")
+    st.markdown("**Connect to Google Sheets:**")
+    
+    sync_url = st.text_input(
+        "Google Apps Script URL",
+        value=google_script_url,
+        placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec",
+        key="settings_sync_url",
+        help="Deploy your Google Apps Script as a web app and paste the URL here"
+    )
+    
+    col_save, col_sync = st.columns(2)
+    with col_save:
+        if sync_url != google_script_url:
+            if st.button("💾 Save URL", use_container_width=True, key="settings_save_url"):
+                save_setting('googleScriptUrl', sync_url)
+                st.success("URL saved!")
+                st.rerun()
+        elif sync_url:
+            st.success("✓ URL saved")
+    
+    with col_sync:
+        if sync_url:
+            if st.button("🔄 Sync Now", use_container_width=True, key="settings_sync_now"):
+                with st.spinner("Syncing..."):
+                    if sync_from_cloud(sync_url):
+                        st.success("Sync completed!")
+                        st.rerun()
+                    else:
+                        st.error("Sync failed. Check your URL.")
+    
+    if last_synced:
+        st.info(f"🕒 Last synced: {last_synced[:19]}")
+    
+    if not sync_url:
+        st.markdown("""
+        <div style="background-color: #FFF3CD; 
+                    border-left: 4px solid #FF9500; 
+                    padding: 1rem; 
+                    border-radius: 8px; 
+                    margin-top: 1rem;">
+            <p style="margin: 0; font-size: 13px; color: #856404;">
+                <strong>How to set up Google Sheets sync:</strong><br>
+                1. Create a Google Apps Script<br>
+                2. Deploy it as a web app<br>
+                3. Paste the deployment URL above
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+def show_settings_page(user, google_script_url, last_synced, category_budgets):
+    st.markdown("""
+    <div style="background: white; 
+                padding: 1.5rem; 
+                border-radius: 16px; 
+                margin-bottom: 1.5rem;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <h2 style="margin: 0 0 1rem 0; font-size: 24px; font-weight: 700;">⚙️ Settings & Sync</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # User selection
+    st.markdown("### 👤 User Profile")
+    selected_user = st.radio(
+        "Select User",
+        ["Hadi", "Ruhi"],
+        index=0 if user == "Hadi" else (1 if user == "Ruhi" else 0),
+        key="settings_user_select",
+        horizontal=True
+    )
+    
+    if selected_user != user:
+        save_setting('user', selected_user)
+        st.success(f"✓ User set to {selected_user}")
+        st.rerun()
+    
+    if user:
+        st.info(f"✓ Currently logged in as **{user}**")
+    
+    st.divider()
+    
+    # Cloud Sync Section
+    st.markdown("### ☁️ Google Sheets Sync")
+    st.markdown("**Connect to Google Sheets:**")
+    
+    sync_url = st.text_input(
+        "Google Apps Script URL",
+        value=google_script_url,
+        placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec",
+        key="settings_sync_url",
+        help="Deploy your Google Apps Script as a web app and paste the URL here"
+    )
+    
+    col_save, col_sync = st.columns(2)
+    with col_save:
+        if sync_url != google_script_url:
+            if st.button("💾 Save URL", use_container_width=True, key="settings_save_url"):
+                save_setting('googleScriptUrl', sync_url)
+                st.success("URL saved!")
+                st.rerun()
+        elif sync_url:
+            st.success("✓ URL saved")
+    
+    with col_sync:
+        if sync_url:
+            if st.button("🔄 Sync Now", use_container_width=True, key="settings_sync_now"):
+                with st.spinner("Syncing..."):
+                    if sync_from_cloud(sync_url):
+                        st.success("Sync completed!")
+                        st.rerun()
+                    else:
+                        st.error("Sync failed. Check your URL.")
+    
+    if last_synced:
+        st.info(f"🕒 Last synced: {last_synced[:19]}")
+    
+    if not sync_url:
+        st.markdown("""
+        <div style="background-color: #FFF3CD; 
+                    border-left: 4px solid #FF9500; 
+                    padding: 1rem; 
+                    border-radius: 8px; 
+                    margin-top: 1rem;">
+            <p style="margin: 0; font-size: 13px; color: #856404;">
+                <strong>How to set up Google Sheets sync:</strong><br>
+                1. Create a Google Apps Script<br>
+                2. Deploy it as a web app<br>
+                3. Paste the deployment URL above
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def show_budget_config(category_budgets):
     st.markdown("""
