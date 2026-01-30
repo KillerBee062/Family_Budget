@@ -452,6 +452,35 @@ def main():
     col1, col2, col3 = st.columns(3)
     
     with col1:
+        # Income breakdown visualization
+        income_sources = {}
+        for inc in current_month_income:
+            src = inc['source']
+            income_sources[src] = income_sources.get(src, 0) + inc['amount']
+        
+        income_bar_html = ""
+        if total_income > 0:
+            income_bar_html = '<div style="display: flex; height: 8px; width: 100%; background: #F3F4F6; border-radius: 4px; overflow: hidden; margin-top: 12px;">'
+            colors = ['#10B981', '#34D399', '#6EE7B7', '#A7F3D0']
+            idx = 0
+            for source, amount in sorted(income_sources.items(), key=lambda x: x[1], reverse=True):
+                pct = (amount / total_income) * 100
+                color = colors[idx % len(colors)]
+                income_bar_html += f'<div style="width: {pct}%; background: {color};" title="{source}: ৳{amount:,.0f} ({pct:.0f}%)"></div>'
+                idx += 1
+            income_bar_html += '</div>'
+            
+            # Simple Legend
+            income_bar_html += '<div style="display: flex; gap: 8px; margin-top: 6px; font-size: 10px; color: #64748B; flex-wrap: wrap;">'
+            idx = 0
+            for source, amount in sorted(income_sources.items(), key=lambda x: x[1], reverse=True)[:3]: # Show top 3
+                 color = colors[idx % len(colors)]
+                 income_bar_html += f'<div style="display: flex; align-items: center; gap: 3px;"><div style="width: 6px; height: 6px; border-radius: 50%; background: {color};"></div>{source}</div>'
+                 idx += 1
+            if len(income_sources) > 3:
+                income_bar_html += f'<div>+{len(income_sources)-3} more</div>'
+            income_bar_html += '</div>'
+
         st.markdown(f"""
         <div class="stat-card" style="border-left-color: #10B981;">
             <div class="stat-label">Total Income</div>
@@ -459,10 +488,27 @@ def main():
             <div class="stat-sub" style="color: #10B981;">
                 <span>💰</span> Earnings
             </div>
+            {income_bar_html}
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
+        # Budget vs Spent visualization
+        budget_pct = (total_spent / total_budget_limit * 100) if total_budget_limit > 0 else 0
+        budget_bar_color = "#4F46E5" if budget_pct <= 100 else "#EF4444"
+        
+        budget_bar_html = f"""
+        <div style="margin-top: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-bottom: 4px;">
+                <span>Spent: ৳{total_spent:,.0f}</span>
+                <span>{budget_pct:.0f}%</span>
+            </div>
+            <div style="height: 8px; width: 100%; background: #F3F4F6; border-radius: 4px; overflow: hidden;">
+                <div style="width: {min(budget_pct, 100)}%; height: 100%; background: {budget_bar_color}; border-radius: 4px;"></div>
+            </div>
+        </div>
+        """
+
         st.markdown(f"""
         <div class="stat-card" style="border-left-color: #4F46E5;">
             <div class="stat-label">Total Budget</div>
@@ -470,6 +516,7 @@ def main():
             <div class="stat-sub" style="color: #4F46E5;">
                 <span>🎯</span> Monthly Goal
             </div>
+            {budget_bar_html}
         </div>
         """, unsafe_allow_html=True)
     
@@ -562,16 +609,21 @@ def show_expense_form(category_budgets, current_user):
         )
         selected_category = category_map[selected_category_display]
         
-        with st.form("expense_form"):
+        # Initialize session state for form inputs if not exists
+        if 'new_expense_item' not in st.session_state: st.session_state.new_expense_item = ''
+        if 'new_expense_amount' not in st.session_state: st.session_state.new_expense_amount = 0.0
+        if 'new_expense_notes' not in st.session_state: st.session_state.new_expense_notes = ''
+
+        with st.form("expense_form", clear_on_submit=False):
             # Responsive columns - stack on mobile
             col1, col2 = st.columns([1, 1])
             
             with col1:
                 expense_date = st.date_input("Date", value=datetime.now())
-                expense_item = st.text_input("Item", placeholder="What did you buy?")
+                expense_item = st.text_input("Item", placeholder="What did you buy?", key="new_expense_item")
             
             with col2:
-                expense_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f")
+                expense_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f", key="new_expense_amount")
                 paid_by = st.radio("Paid By", ["Hadi", "Ruhi"], index=0 if current_user == "Hadi" else 1)
             
             # Recurring expense
@@ -589,7 +641,7 @@ def show_expense_form(category_budgets, current_user):
                         st.text(f"Next due: {next_date}")
                         recurrence_next_due = next_date
             
-            notes = st.text_area("Notes (optional)")
+            notes = st.text_area("Notes (optional)", key="new_expense_notes")
             
             submitted = st.form_submit_button("Add Expense", type="primary")
             
@@ -613,6 +665,11 @@ def show_expense_form(category_budgets, current_user):
                     # Sync to cloud
                     sync_to_cloud()
                     
+                    # Clear form state
+                    st.session_state.new_expense_item = ''
+                    st.session_state.new_expense_amount = 0.0
+                    st.session_state.new_expense_notes = ''
+                    
                     st.success(f"Expense added successfully! (৳{expense_amount:,.0f} on {expense_date_str})")
                     # Force rerun to refresh the page
                     st.rerun()
@@ -620,17 +677,22 @@ def show_expense_form(category_budgets, current_user):
                     st.error("Please fill in all required fields.")
 
     else: # Income
-        with st.form("income_form"):
+        # Initialize session state for income inputs if not exists
+        if 'new_income_source' not in st.session_state: st.session_state.new_income_source = ''
+        if 'new_income_amount' not in st.session_state: st.session_state.new_income_amount = 0.0
+        if 'new_income_notes' not in st.session_state: st.session_state.new_income_notes = ''
+
+        with st.form("income_form", clear_on_submit=False):
             col1, col2 = st.columns([1, 1])
             
             with col1:
                 income_date = st.date_input("Date", value=datetime.now())
-                income_source = st.text_input("Source", placeholder="e.g. Salary, Business, Bonus")
+                income_source = st.text_input("Source", placeholder="e.g. Salary, Business, Bonus", key="new_income_source")
             
             with col2:
-                income_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f")
+                income_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f", key="new_income_amount")
             
-            notes = st.text_area("Notes (optional)")
+            notes = st.text_area("Notes (optional)", key="new_income_notes")
             
             submitted = st.form_submit_button("Add Income", type="primary")
             
@@ -652,6 +714,11 @@ def show_expense_form(category_budgets, current_user):
                     
                     # Sync to cloud
                     sync_to_cloud()
+                    
+                    # Clear form state
+                    st.session_state.new_income_source = ''
+                    st.session_state.new_income_amount = 0.0
+                    st.session_state.new_income_notes = ''
                     
                     st.success(f"Income added successfully! (৳{income_amount:,.0f})")
                     st.rerun()
