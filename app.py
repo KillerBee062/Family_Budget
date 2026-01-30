@@ -562,7 +562,7 @@ def main():
         show_dashboard(current_month_expenses, all_expenses, category_budgets, current_month_income)
     
     with tab3:
-        show_history(all_expenses, category_budgets)
+        show_history(all_expenses, category_budgets, all_income)
     
     with tab4:
         show_budget_config(category_budgets)
@@ -873,214 +873,301 @@ def prepare_trend_data(expenses, time_frame):
     
     return [(k, v) for k, v in sorted(data_map.items())]
 
-def show_history(all_expenses, category_budgets):
+def show_history(all_expenses, category_budgets, all_income):
     st.markdown("""
     <div class="premium-card">
         <h3 style="margin: 0; color: var(--text-main);">📋 Transaction History</h3>
     </div>
     """, unsafe_allow_html=True)
     
-    if not all_expenses:
-        st.info("No expenses recorded yet.")
-        return
+    tab_expenses, tab_income = st.tabs(["Expenses", "Income"])
     
-    # Create category icon map
-    category_icons = {b['category']: b.get('icon', '📦') for b in category_budgets}
-    
-    # Get all groups and categories for edit form
-    groups = sorted(list(set(b['group_name'] for b in category_budgets)))
-    categories_by_group = {}
-    for budget in category_budgets:
-        group = budget['group_name']
-        if group not in categories_by_group:
-            categories_by_group[group] = []
-        categories_by_group[group].append(budget)
-    
-    # Initialize session state for editing
-    if 'editing_expense_id' not in st.session_state:
-        st.session_state.editing_expense_id = None
-    
-    # Display expenses
-    for expense in all_expenses[:50]:  # Show last 50
-        expense_id = expense['id']
-        is_editing = st.session_state.editing_expense_id == expense_id
-        
-        if is_editing:
-            # Edit form
-            with st.container():
-                st.subheader("✏️ Edit Expense")
-                with st.form(f"edit_form_{expense_id}"):
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        edit_date = st.date_input(
-                            "Date",
-                            value=datetime.strptime(expense['date'], '%Y-%m-%d').date(),
-                            key=f"edit_date_{expense_id}"
-                        )
-                        edit_item = st.text_input(
-                            "Item",
-                            value=expense['item'],
-                            key=f"edit_item_{expense_id}"
-                        )
-                    
-                    with col2:
-                        # Group and category selection
-                        edit_group = st.selectbox(
-                            "Category Group",
-                            groups,
-                            index=groups.index(expense.get('group', groups[0])) if expense.get('group') in groups else 0,
-                            key=f"edit_group_{expense_id}"
-                        )
-                        
-                        categories_in_group = [b for b in category_budgets if b['group_name'] == edit_group]
-                        category_list = [f"{b.get('icon', '📦')} {b['category']}" for b in categories_in_group]
-                        category_map = {f"{b.get('icon', '📦')} {b['category']}": b['category'] for b in categories_in_group}
-                        
-                        current_cat_display = f"{category_icons.get(expense['category'], '📦')} {expense['category']}"
-                        if current_cat_display not in category_list:
-                            current_cat_display = category_list[0] if category_list else ""
-                        
-                        edit_category_display = st.selectbox(
-                            "Category",
-                            category_list,
-                            index=category_list.index(current_cat_display) if current_cat_display in category_list else 0,
-                            key=f"edit_category_{expense_id}"
-                        )
-                        edit_category = category_map[edit_category_display]
-                    
-                    col3, col4 = st.columns(2)
-                    with col3:
-                        edit_amount = st.number_input(
-                            "Amount (৳)",
-                            min_value=0.0,
-                            step=0.01,
-                            value=float(expense['amount']),
-                            key=f"edit_amount_{expense_id}"
-                        )
-                    with col4:
-                        edit_paid_by = st.radio(
-                            "Paid By",
-                            ["Hadi", "Ruhi"],
-                            index=0 if expense['paid_by'] == "Hadi" else 1,
-                            key=f"edit_paid_by_{expense_id}"
-                        )
-                    
-                    # Recurring expense
-                    edit_is_recurring = st.checkbox(
-                        "Recurring Payment?",
-                        value=bool(expense.get('recurrence_active')),
-                        key=f"edit_recurring_{expense_id}"
-                    )
-                    
-                    edit_recurrence_frequency = None
-                    edit_recurrence_next_due = None
-                    
-                    if edit_is_recurring:
-                        col5, col6 = st.columns(2)
-                        with col5:
-                            edit_recurrence_frequency = st.selectbox(
-                                "Frequency",
-                                ["weekly", "monthly"],
-                                index=0 if expense.get('recurrence_frequency') == 'weekly' else 1,
-                                key=f"edit_frequency_{expense_id}"
-                            )
-                        with col6:
-                            if edit_recurrence_frequency:
-                                next_date = calculate_next_date(edit_date.strftime('%Y-%m-%d'), edit_recurrence_frequency)
-                                st.text(f"Next due: {next_date}")
-                                edit_recurrence_next_due = next_date
-                    
-                    edit_notes = st.text_area(
-                        "Notes (optional)",
-                        value=expense.get('notes', ''),
-                        key=f"edit_notes_{expense_id}"
-                    )
-                    
-                    col_save, col_cancel = st.columns(2)
-                    with col_save:
-                        if st.form_submit_button("💾 Save Changes", type="primary"):
-                            # Update expense
-                            conn = get_db()
-                            c = conn.cursor()
-                            
-                            c.execute('''UPDATE expenses 
-                                        SET date = ?, item = ?, category = ?, amount = ?, paid_by = ?, notes = ?,
-                                            recurrence_frequency = ?, recurrence_next_due = ?, recurrence_active = ?
-                                        WHERE id = ?''',
-                                    (edit_date.strftime('%Y-%m-%d'), edit_item, edit_category, edit_amount,
-                                     edit_paid_by, edit_notes, edit_recurrence_frequency, edit_recurrence_next_due,
-                                     1 if edit_is_recurring else 0, expense_id))
-                            
-                            conn.commit()
-                            conn.close()
-                            
-                            # Sync to cloud
-                            sync_to_cloud()
-                            
-                            st.session_state.editing_expense_id = None
-                            st.success("Expense updated successfully!")
-                            st.rerun()
-                    
-                    with col_cancel:
-                        if st.form_submit_button("❌ Cancel"):
-                            st.session_state.editing_expense_id = None
-                            st.rerun()
+    with tab_expenses:
+        if not all_expenses:
+            st.info("No expenses recorded yet.")
         else:
-            # Premium List Item
-            with st.container():
-                st.markdown(f"""
-                <div style="
-                    background: white;
-                    border-radius: 12px;
-                    padding: 1rem;
-                    margin-bottom: 0.75rem;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                    border: 1px solid #E2E8F0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                ">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
+            # Create category icon map
+            category_icons = {b['category']: b.get('icon', '📦') for b in category_budgets}
+            
+            # Get all groups and categories for edit form
+            groups = sorted(list(set(b['group_name'] for b in category_budgets)))
+            
+            # Initialize session state for editing
+            if 'editing_expense_id' not in st.session_state:
+                st.session_state.editing_expense_id = None
+            
+            # Display expenses
+            for expense in all_expenses[:50]:  # Show last 50
+                expense_id = expense['id']
+                is_editing = st.session_state.editing_expense_id == expense_id
+                
+                if is_editing:
+                    # Edit form
+                    with st.container():
+                        st.subheader("✏️ Edit Expense")
+                        with st.form(f"edit_form_{expense_id}"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                edit_date = st.date_input(
+                                    "Date",
+                                    value=datetime.strptime(expense['date'], '%Y-%m-%d').date(),
+                                    key=f"edit_date_{expense_id}"
+                                )
+                                edit_item = st.text_input(
+                                    "Item",
+                                    value=expense['item'],
+                                    key=f"edit_item_{expense_id}"
+                                )
+                            
+                            with col2:
+                                # Group and category selection
+                                edit_group = st.selectbox(
+                                    "Category Group",
+                                    groups,
+                                    index=groups.index(expense.get('group', groups[0])) if expense.get('group') in groups else 0,
+                                    key=f"edit_group_{expense_id}"
+                                )
+                                
+                                categories_in_group = [b for b in category_budgets if b['group_name'] == edit_group]
+                                category_list = [f"{b.get('icon', '📦')} {b['category']}" for b in categories_in_group]
+                                category_map = {f"{b.get('icon', '📦')} {b['category']}": b['category'] for b in categories_in_group}
+                                
+                                current_cat_display = f"{category_icons.get(expense['category'], '📦')} {expense['category']}"
+                                if current_cat_display not in category_list:
+                                    current_cat_display = category_list[0] if category_list else ""
+                                
+                                edit_category_display = st.selectbox(
+                                    "Category",
+                                    category_list,
+                                    index=category_list.index(current_cat_display) if current_cat_display in category_list else 0,
+                                    key=f"edit_category_{expense_id}"
+                                )
+                                edit_category = category_map[edit_category_display]
+                            
+                            col3, col4 = st.columns(2)
+                            with col3:
+                                edit_amount = st.number_input(
+                                    "Amount (৳)",
+                                    min_value=0.0,
+                                    step=0.01,
+                                    value=float(expense['amount']),
+                                    key=f"edit_amount_{expense_id}"
+                                )
+                            with col4:
+                                edit_paid_by = st.radio(
+                                    "Paid By",
+                                    ["Hadi", "Ruhi"],
+                                    index=0 if expense['paid_by'] == "Hadi" else 1,
+                                    key=f"edit_paid_by_{expense_id}"
+                                )
+                            
+                            # Recurring expense
+                            edit_is_recurring = st.checkbox(
+                                "Recurring Payment?",
+                                value=bool(expense.get('recurrence_active')),
+                                key=f"edit_recurring_{expense_id}"
+                            )
+                            
+                            edit_recurrence_frequency = None
+                            edit_recurrence_next_due = None
+                            
+                            if edit_is_recurring:
+                                col5, col6 = st.columns(2)
+                                with col5:
+                                    edit_recurrence_frequency = st.selectbox(
+                                        "Frequency",
+                                        ["weekly", "monthly"],
+                                        index=0 if expense.get('recurrence_frequency') == 'weekly' else 1,
+                                        key=f"edit_frequency_{expense_id}"
+                                    )
+                                with col6:
+                                    if edit_recurrence_frequency:
+                                        next_date = calculate_next_date(edit_date.strftime('%Y-%m-%d'), edit_recurrence_frequency)
+                                        st.text(f"Next due: {next_date}")
+                                        edit_recurrence_next_due = next_date
+                            
+                            edit_notes = st.text_area(
+                                "Notes (optional)",
+                                value=expense.get('notes', ''),
+                                key=f"edit_notes_{expense_id}"
+                            )
+                            
+                            col_save, col_cancel = st.columns(2)
+                            # ... (Save button logic remains same but needs 'conn' context if inlined) ...
+                            # To keep it clean, I'll provide the full block
+                            with col_save:
+                                if st.form_submit_button("💾 Save Changes", type="primary"):
+                                    conn = get_db()
+                                    c = conn.cursor()
+                                    c.execute('''UPDATE expenses 
+                                                SET date = ?, item = ?, category = ?, amount = ?, paid_by = ?, notes = ?,
+                                                    recurrence_frequency = ?, recurrence_next_due = ?, recurrence_active = ?
+                                                WHERE id = ?''',
+                                            (edit_date.strftime('%Y-%m-%d'), edit_item, edit_category, edit_amount,
+                                             edit_paid_by, edit_notes, edit_recurrence_frequency, edit_recurrence_next_due,
+                                             1 if edit_is_recurring else 0, expense_id))
+                                    conn.commit()
+                                    conn.close()
+                                    sync_to_cloud()
+                                    st.session_state.editing_expense_id = None
+                                    st.success("Expense updated successfully!")
+                                    st.rerun()
+                            
+                            with col_cancel:
+                                if st.form_submit_button("❌ Cancel"):
+                                    st.session_state.editing_expense_id = None
+                                    st.rerun()
+                else:
+                    # Expense List Item
+                    with st.container():
+                        st.markdown(f"""
                         <div style="
-                            background: #F1F5F9;
-                            width: 40px; height: 40px;
-                            border-radius: 10px;
-                            display: flex; align-items: center; justify-content: center;
-                            font-size: 20px;
+                            background: white;
+                            border-radius: 12px;
+                            padding: 1rem;
+                            margin-bottom: 0.75rem;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                            border: 1px solid #E2E8F0;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
                         ">
-                            {category_icons.get(expense['category'], '📦')}
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; color: #1E293B;">{expense['item']}</div>
-                            <div style="font-size: 12px; color: #64748B;">
-                                {expense['category']} • {expense['paid_by']} { '• 🔄 Recurring' if expense.get('recurrence_active') else ''}
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="
+                                    background: #F1F5F9;
+                                    width: 40px; height: 40px;
+                                    border-radius: 10px;
+                                    display: flex; align-items: center; justify-content: center;
+                                    font-size: 20px;
+                                ">
+                                    {category_icons.get(expense['category'], '📦')}
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #1E293B;">{expense['item']}</div>
+                                    <div style="font-size: 12px; color: #64748B;">
+                                        {expense['category']} • {expense['paid_by']} { '• 🔄 Recurring' if expense.get('recurrence_active') else ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-weight: 700; color: #1E293B;">৳{expense['amount']:,.0f}</div>
+                                <div style="font-size: 11px; color: #94A3B8;">{expense['date']}</div>
                             </div>
                         </div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-weight: 700; color: #1E293B;">৳{expense['amount']:,.0f}</div>
-                        <div style="font-size: 11px; color: #94A3B8;">{expense['date']}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
+                        
+                        col_edit, col_delete, _ = st.columns([1, 1, 8])
+                        with col_edit:
+                            if st.button("✏️", key=f"edit_btn_{expense_id}", help="Edit"):
+                                 st.session_state.editing_expense_id = expense_id
+                                 st.rerun()
+                        with col_delete:
+                            if st.button("🗑️", key=f"delete_btn_{expense_id}", help="Delete"):
+                                conn = get_db()
+                                c = conn.cursor()
+                                c.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
+                                conn.commit()
+                                conn.close()
+                                sync_to_cloud()
+                                st.success("Deleted")
+                                st.rerun()
+
+    with tab_income:
+        if not all_income:
+            st.info("No income recorded yet.")
+        else:
+            if 'editing_income_id' not in st.session_state:
+                st.session_state.editing_income_id = None
                 
-                # Action buttons in a small row below (optional)
-                col_edit, col_delete, _ = st.columns([1, 1, 8])
-                with col_edit:
-                    if st.button("✏️", key=f"edit_btn_{expense_id}", help="Edit"):
-                         st.session_state.editing_expense_id = expense_id
-                         st.rerun()
-                with col_delete:
-                    if st.button("🗑️", key=f"delete_btn_{expense_id}", help="Delete"):
-                        conn = get_db()
-                        c = conn.cursor()
-                        c.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
-                        conn.commit()
-                        conn.close()
-                        sync_to_cloud()
-                        st.success("Deleted")
-                        st.rerun()
+            for income in all_income[:50]:
+                income_id = income['id']
+                is_editing = st.session_state.editing_income_id == income_id
+                
+                if is_editing:
+                    # Edit Income Form
+                    with st.container():
+                        st.subheader("✏️ Edit Income")
+                        with st.form(f"edit_income_form_{income_id}"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                edit_date = st.date_input("Date", value=datetime.strptime(income['date'], '%Y-%m-%d').date(), key=f"edit_inc_date_{income_id}")
+                                edit_source = st.text_input("Source", value=income['source'], key=f"edit_inc_source_{income_id}")
+                            with col2:
+                                edit_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, value=float(income['amount']), key=f"edit_inc_amount_{income_id}")
+                            
+                            edit_notes = st.text_area("Notes", value=income.get('notes', ''), key=f"edit_inc_notes_{income_id}")
+                            
+                            col_save, col_cancel = st.columns(2)
+                            with col_save:
+                                if st.form_submit_button("💾 Save Changes", type="primary"):
+                                    conn = get_db()
+                                    c = conn.cursor()
+                                    c.execute('UPDATE income SET date=?, source=?, amount=?, notes=? WHERE id=?',
+                                             (edit_date.strftime('%Y-%m-%d'), edit_source, edit_amount, edit_notes, income_id))
+                                    conn.commit()
+                                    conn.close()
+                                    sync_to_cloud()
+                                    st.session_state.editing_income_id = None
+                                    st.success("Income updated!")
+                                    st.rerun()
+                            with col_cancel:
+                                if st.form_submit_button("❌ Cancel"):
+                                    st.session_state.editing_income_id = None
+                                    st.rerun()
+                else:
+                    # Income List Item
+                    with st.container():
+                        st.markdown(f"""
+                        <div style="
+                            background: white;
+                            border-radius: 12px;
+                            padding: 1rem;
+                            margin-bottom: 0.75rem;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                            border: 1px solid #E2E8F0;
+                            border-left: 4px solid #10B981;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                        ">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="
+                                    background: #ECFDF5;
+                                    width: 40px; height: 40px;
+                                    border-radius: 10px;
+                                    display: flex; align-items: center; justify-content: center;
+                                    font-size: 20px;
+                                ">
+                                    💰
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: #1E293B;">{income['source']}</div>
+                                    <div style="font-size: 12px; color: #64748B;"> Income </div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-weight: 700; color: #10B981;">+৳{income['amount']:,.0f}</div>
+                                <div style="font-size: 11px; color: #94A3B8;">{income['date']}</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        col_edit, col_delete, _ = st.columns([1, 1, 8])
+                        with col_edit:
+                            if st.button("✏️", key=f"edit_inc_btn_{income_id}", help="Edit"):
+                                 st.session_state.editing_income_id = income_id
+                                 st.rerun()
+                        with col_delete:
+                            if st.button("🗑️", key=f"delete_inc_btn_{income_id}", help="Delete"):
+                                conn = get_db()
+                                c = conn.cursor()
+                                c.execute('DELETE FROM income WHERE id = ?', (income_id,))
+                                conn.commit()
+                                conn.close()
+                                sync_to_cloud()
+                                st.success("Deleted")
+                                st.rerun()
 
 def show_settings_page(user, google_script_url, last_synced, category_budgets):
     st.markdown("""
