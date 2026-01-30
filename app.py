@@ -1136,14 +1136,24 @@ def show_settings_page(user, google_script_url, last_synced, category_budgets):
             st.success("✓ URL saved")
     
     with col_sync:
-        if sync_url:
-            if st.button("🔄 Sync Now", use_container_width=True, key="settings_sync_now"):
-                with st.spinner("Syncing..."):
+        col_pull, col_push = st.columns(2)
+        with col_pull:
+            if st.button("⬇️ Pull", use_container_width=True, key="settings_pull", help="Overwrite local data with Google Sheet data"):
+                with st.spinner("Downloading..."):
                     if sync_from_cloud(sync_url):
-                        st.success("Sync completed!")
+                        st.success("Pulled!")
                         st.rerun()
                     else:
-                        st.error("Sync failed. Check your URL.")
+                        st.error("Pull failed")
+        
+        with col_push:
+            if st.button("⬆️ Push", use_container_width=True, key="settings_push", help="Upload local data to Google Sheet"):
+                with st.spinner("Uploading..."):
+                    if sync_to_cloud():
+                        st.success("Pushed!")
+                        save_setting('lastSynced', datetime.now().isoformat())
+                    else:
+                        st.error("Push failed")
     
     if last_synced:
         st.info(f"🕒 Last synced: {last_synced[:19]}")
@@ -1163,6 +1173,41 @@ def show_settings_page(user, google_script_url, last_synced, category_budgets):
             </p>
         </div>
         """, unsafe_allow_html=True)
+    
+    st.divider()
+    
+    # Danger Zone
+    st.markdown("### 🚨 Danger Zone")
+    st.write("Resetting the data will delete all expenses and income records from this device.")
+    
+    if st.button("🗑️ Reset All Data", type="primary", use_container_width=True):
+        # Confirmation dialog simulation using session state
+        st.session_state.confirm_reset = True
+        st.rerun()
+        
+    if st.session_state.get('confirm_reset'):
+        st.warning("Are you sure? This cannot be undone.")
+        col_yes, col_no = st.columns(2)
+        with col_yes:
+            if st.button("Yes, Delete Everything", type="primary", use_container_width=True):
+                conn = get_db()
+                c = conn.cursor()
+                c.execute('DELETE FROM expenses')
+                c.execute('DELETE FROM income')
+                conn.commit()
+                conn.close()
+                
+                # Sync empty state to cloud
+                if google_script_url:
+                    sync_to_cloud()
+                
+                st.session_state.confirm_reset = False
+                st.success("All data has been reset.")
+                st.rerun()
+        with col_no:
+            if st.button("Cancel", use_container_width=True):
+                st.session_state.confirm_reset = False
+                st.rerun()
 
 def show_settings_page(user, google_script_url, last_synced, category_budgets):
     st.markdown("""
