@@ -429,6 +429,13 @@ def main():
     # Calculate totals
     total_budget_limit = sum(b['limit_amount'] for b in category_budgets)
     total_spent = sum(e['amount'] for e in current_month_expenses)
+    
+    # Core Budget (Excluding 'OTHERS')
+    core_budget_categories = [b for b in category_budgets if b['group_name'] != 'OTHERS']
+    core_budget_limit = sum(b['limit_amount'] for b in core_budget_categories)
+    core_expense_categories = {b['category'] for b in core_budget_categories}
+    core_spent = sum(e['amount'] for e in current_month_expenses if e['category'] in core_expense_categories)
+    
     total_income = sum(i['amount'] for i in current_month_income)
     
     # Metrics
@@ -493,14 +500,14 @@ def main():
         """, unsafe_allow_html=True)
     
     with col2:
-        # Budget vs Spent visualization
-        budget_pct = (total_spent / total_budget_limit * 100) if total_budget_limit > 0 else 0
+        # Budget vs Spent visualization (Core Budget Only)
+        budget_pct = (core_spent / core_budget_limit * 100) if core_budget_limit > 0 else 0
         budget_bar_color = "#4F46E5" if budget_pct <= 100 else "#EF4444"
         
         budget_bar_html = f"""
         <div style="margin-top: 12px;">
             <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; margin-bottom: 4px;">
-                <span>Spent: ৳{total_spent:,.0f}</span>
+                <span>Spent: ৳{core_spent:,.0f}</span>
                 <span>{budget_pct:.0f}%</span>
             </div>
             <div style="height: 8px; width: 100%; background: #F3F4F6; border-radius: 4px; overflow: hidden;">
@@ -512,7 +519,7 @@ def main():
         st.markdown(f"""
         <div class="stat-card" style="border-left-color: #4F46E5;">
             <div class="stat-label">Total Budget</div>
-            <div class="stat-value">৳{total_budget_limit:,.0f}</div>
+            <div class="stat-value">৳{core_budget_limit:,.0f}</div>
             <div class="stat-sub" style="color: #4F46E5;">
                 <span>🎯</span> Monthly Goal
             </div>
