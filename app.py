@@ -765,12 +765,73 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
                 limit = budget['limit_amount']
                 percentage = (spent / limit * 100) if limit > 0 else 0
                 
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.write(f"{budget.get('icon', '📦')} **{budget['category']}**")
-                    st.progress(min(percentage / 100, 1.0))
-                with col2:
-                    st.metric("", f"৳{spent:,.0f}", f"/ ৳{limit:,.0f}")
+                # Dynamic coloring
+                if percentage >= 100:
+                    bar_color = "#EF4444" # Red
+                    bg_color = "#FEF2F2"
+                    text_color = "#991B1B"
+                elif percentage >= 85:
+                    bar_color = "#F59E0B" # Orange
+                    bg_color = "#FFFBEB" 
+                    text_color = "#92400E"
+                else:
+                    bar_color = "#10B981" # Green
+                    bg_color = "#ECFDF5"
+                    text_color = "#065F46"
+                
+                # Cap progress bar width at 100% for visual sanity
+                width_pct = min(percentage, 100)
+                
+                html_card = f"""
+                <div style="
+                    background: white;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    margin-bottom: 12px;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.1rem;">{budget.get('icon', '📦')}</span>
+                            <span style="font-weight: 600; color: #1E293B; font-size: 0.95rem;">{budget['category']}</span>
+                        </div>
+                        <div style="
+                            background: {bg_color};
+                            color: {text_color};
+                            padding: 2px 8px;
+                            border-radius: 99px;
+                            font-size: 0.75rem;
+                            font-weight: 700;
+                        ">
+                            {percentage:.1f}%
+                        </div>
+                    </div>
+                    
+                    <div style="
+                        width: 100%;
+                        height: 8px;
+                        background: #F1F5F9;
+                        border-radius: 99px;
+                        overflow: hidden;
+                        margin-bottom: 8px;
+                    ">
+                        <div style="
+                            width: {width_pct}%;
+                            height: 100%;
+                            background: {bar_color};
+                            border-radius: 99px;
+                            transition: width 0.5s ease;
+                        "></div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 4px;">
+                        <span style="font-weight: 700; color: #1E293B; font-size: 1rem;">৳{spent:,.0f}</span>
+                        <span style="color: #94A3B8; font-size: 0.8rem;">/ ৳{limit:,.0f}</span>
+                    </div>
+                </div>
+                """
+                st.markdown(html_card, unsafe_allow_html=True)
     
     # Charts
     col1, col2 = st.columns(2)
