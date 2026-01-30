@@ -262,29 +262,28 @@ def init_db():
     
     conn.commit()
     
-    # Initialize default category budgets if empty
-    c.execute('SELECT COUNT(*) FROM category_budgets')
-    if c.fetchone()[0] == 0:
-        default_budgets = [
-            ('Monthly Rent', 'HOUSING', 15000, '🏠'),
-            ('Service Charge / Maintenance', 'HOUSING', 3000, '🛠️'),
-            ('Electricity / Gas / Water', 'HOUSING', 3000, '⚡'),
-            ('Sinking Fund (Building Repair)', 'HOUSING', 1000, '🏗️'),
-            ('Office Commute (Hadi)', 'TRANSPORT', 3000, '🚌'),
-            ('Office Commute (Ruhi)', 'TRANSPORT', 3000, '🚗'),
-            ("Daughter's School Transport", 'TRANSPORT', 3000, '🚌'),
-            ('Car Maintenance / Driver', 'TRANSPORT', 5000, '🔧'),
-            ('Hadi (Personal Hangout, Cosmetics)', 'PERSONAL', 3000, '👨'),
-            ('Ruhi (Cream, Accessories, Skincare)', 'PERSONAL', 3000, '👩'),
-            ('Yusra (Diapers, Wipes, Baby Care)', 'PERSONAL', 5000, '👶'),
-            ('Groceries & Food', 'LIVING', 10000, '🛒'),
-            ('Household Help (Maid/Cook)', 'LIVING', 4000, '🧹'),
-            ('Internet / Phone / Subscriptions', 'LIVING', 2000, '📶'),
-            ('Family Hangout', 'LIVING', 4000, '🎉'),
-            ('Other', 'OTHERS', 2000, '📦')
-        ]
-        c.executemany('INSERT INTO category_budgets (category, group_name, limit_amount, icon) VALUES (?, ?, ?, ?)', default_budgets)
-        conn.commit()
+    # Initialize default category budgets (safe insert)
+    default_budgets = [
+        ('Monthly Rent', 'HOUSING', 15000, '🏠'),
+        ('Service Charge / Maintenance', 'HOUSING', 3000, '🛠️'),
+        ('Electricity / Gas / Water', 'HOUSING', 3000, '⚡'),
+        ('Sinking Fund (Building Repair)', 'HOUSING', 1000, '🏗️'),
+        ('Office Commute (Hadi)', 'TRANSPORT', 3000, '🚌'),
+        ('Office Commute (Ruhi)', 'TRANSPORT', 3000, '🚗'),
+        ("Daughter's School Transport", 'TRANSPORT', 3000, '🚌'),
+        ('Car Maintenance / Driver', 'TRANSPORT', 5000, '🔧'),
+        ('Hadi', 'PERSONAL', 2000, '👤'),
+        ('Hadi (Personal Hangout, Cosmetics)', 'PERSONAL', 3000, '👨'),
+        ('Ruhi (Cream, Accessories, Skincare)', 'PERSONAL', 3000, '👩'),
+        ('Yusra (Diapers, Wipes, Baby Care)', 'PERSONAL', 5000, '👶'),
+        ('Groceries & Food', 'LIVING', 10000, '🛒'),
+        ('Household Help (Maid/Cook)', 'LIVING', 4000, '🧹'),
+        ('Internet / Phone / Subscriptions', 'LIVING', 2000, '📶'),
+        ('Family Hangout', 'LIVING', 4000, '🎉'),
+        ('Other', 'OTHERS', 2000, '📦')
+    ]
+    c.executemany('INSERT OR IGNORE INTO category_budgets (category, group_name, limit_amount, icon) VALUES (?, ?, ?, ?)', default_budgets)
+    conn.commit()
     
     conn.close()
 
@@ -786,7 +785,17 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
         if category_data:
             df_cat = pd.DataFrame(list(category_data.items()), columns=['Category', 'Amount'])
             fig_pie = px.pie(df_cat, values='Amount', names='Category', 
-                           title="Spending by Category")
+                           title="Spending by Category",
+                           hole=0.4)
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            fig_pie.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font_family="Inter",
+                title_font_size=16,
+                margin=dict(l=0, r=0, t=30, b=0),
+                showlegend=False
+            )
             st.plotly_chart(fig_pie, use_container_width=True)
     
     with col2:
@@ -797,14 +806,20 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
             payer_data[payer] = payer_data.get(payer, 0) + expense['amount']
         
         df_payer = pd.DataFrame(list(payer_data.items()), columns=['Person', 'Amount'])
-        fig_bar = px.bar(df_payer, x='Person', y='Amount',                         title="Spending by Person",
+        fig_bar = px.bar(df_payer, x='Person', y='Amount', 
+                         title="Spending by Person",
                          color='Person',
+                         text_auto='.2s',
                          color_discrete_map={'Hadi': '#4F46E5', 'Ruhi': '#10B981'})
         fig_bar.update_layout(
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
             font_family="Inter",
-            title_font_size=16
+            title_font_size=16,
+            xaxis_title=None,
+            yaxis_title=None,
+            margin=dict(l=0, r=0, t=30, b=0),
+            showlegend=False
         )
         st.plotly_chart(fig_bar, use_container_width=True)
     
@@ -816,8 +831,19 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
     trend_data = prepare_trend_data(all_expenses, time_frame.lower())
     if trend_data:
         df_trend = pd.DataFrame(trend_data, columns=['Period', 'Amount'])
-        fig_trend = px.bar(df_trend, x='Period', y='Amount', 
-                          title=f"Spending Trends ({time_frame})")
+        fig_trend = px.area(df_trend, x='Period', y='Amount', 
+                          title=f"Spending Trends ({time_frame})",
+                          markers=True)
+        fig_trend.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font_family="Inter",
+            title_font_size=16,
+            xaxis_title=None,
+            yaxis_title=None,
+            margin=dict(l=0, r=0, t=30, b=0)
+        )
+        fig_trend.update_traces(line_color='#6366f1', fill_color='rgba(99, 102, 241, 0.2)')
         st.plotly_chart(fig_trend, use_container_width=True)
 
 def prepare_trend_data(expenses, time_frame):
