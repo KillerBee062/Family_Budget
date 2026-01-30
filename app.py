@@ -442,14 +442,7 @@ def main():
     remaining_budget = total_budget_limit - total_spent
     
     # Premium Header
-    st.markdown(f"""
-    <div class="header-card">
-        <h1 style="margin:0; font-size: 2.2rem; margin-bottom: 0.5rem;">Family Budget</h1>
-        <div style="font-size: 1.1rem; opacity: 0.9; font-weight: 500;">
-            {current_month} {current_year} {f'• Hello, {user}' if user else ''}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div class="header-card"><h1 style="margin:0; font-size: 2.2rem; margin-bottom: 0.5rem;">Family Budget</h1><div style="font-size: 1.1rem; opacity: 0.9; font-weight: 500;">{current_month} {current_year} {f'• Hello, {user}' if user else ''}</div></div>""", unsafe_allow_html=True)
     
     with st.sidebar:
         st.empty()
@@ -487,16 +480,7 @@ def main():
                 income_bar_html += f'<div>+{len(income_sources)-3} more</div>'
             income_bar_html += '</div>'
 
-        st.markdown(f"""
-        <div class="stat-card" style="border-left-color: #10B981;">
-            <div class="stat-label">Total Income</div>
-            <div class="stat-value" style="color: #10B981;">৳{total_income:,.0f}</div>
-            <div class="stat-sub" style="color: #10B981;">
-                <span>💰</span> Earnings
-            </div>
-            {income_bar_html}
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div class="stat-card" style="border-left-color: #10B981;"><div class="stat-label">Total Income</div><div class="stat-value" style="color: #10B981;">৳{total_income:,.0f}</div><div class="stat-sub" style="color: #10B981;"><span>💰</span> Earnings</div>{income_bar_html}</div>""", unsafe_allow_html=True)
     
     with col2:
         # Budget vs Spent visualization (Core Budget Only)
@@ -776,55 +760,7 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
                 # Cap progress bar width at 100% for visual sanity
                 width_pct = min(percentage, 100)
                 
-                html_card = f"""
-                <div style="
-                    background: white;
-                    border: 1px solid #E2E8F0;
-                    border-radius: 12px;
-                    padding: 12px 16px;
-                    margin-bottom: 12px;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-                ">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 1.1rem;">{budget.get('icon', '📦')}</span>
-                            <span style="font-weight: 600; color: #1E293B; font-size: 0.95rem;">{budget['category']}</span>
-                        </div>
-                        <div style="
-                            background: {bg_color};
-                            color: {text_color};
-                            padding: 2px 8px;
-                            border-radius: 99px;
-                            font-size: 0.75rem;
-                            font-weight: 700;
-                        ">
-                            {percentage:.1f}%
-                        </div>
-                    </div>
-                    
-                    <div style="
-                        width: 100%;
-                        height: 8px;
-                        background: #F1F5F9;
-                        border-radius: 99px;
-                        overflow: hidden;
-                        margin-bottom: 8px;
-                    ">
-                        <div style="
-                            width: {width_pct}%;
-                            height: 100%;
-                            background: {bar_color};
-                            border-radius: 99px;
-                            transition: width 0.5s ease;
-                        "></div>
-                    </div>
-                    
-                    <div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 4px;">
-                        <span style="font-weight: 700; color: #1E293B; font-size: 1rem;">৳{spent:,.0f}</span>
-                        <span style="color: #94A3B8; font-size: 0.8rem;">/ ৳{limit:,.0f}</span>
-                    </div>
-                </div>
-                """
+                html_card = f"""<div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 1.1rem;">{budget.get('icon', '📦')}</span><span style="font-weight: 600; color: #1E293B; font-size: 0.95rem;">{budget['category']}</span></div><div style="background: {bg_color}; color: {text_color}; padding: 2px 8px; border-radius: 99px; font-size: 0.75rem; font-weight: 700;">{percentage:.1f}%</div></div><div style="width: 100%; height: 8px; background: #F1F5F9; border-radius: 99px; overflow: hidden; margin-bottom: 8px;"><div style="width: {width_pct}%; height: 100%; background: {bar_color}; border-radius: 99px; transition: width 0.5s ease;"></div></div><div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 4px;"><span style="font-weight: 700; color: #1E293B; font-size: 1rem;">৳{spent:,.0f}</span><span style="color: #94A3B8; font-size: 0.8rem;">/ ৳{limit:,.0f}</span></div></div>"""
                 st.markdown(html_card, unsafe_allow_html=True)
     
     # Charts
