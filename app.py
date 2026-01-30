@@ -577,6 +577,12 @@ def show_expense_form(category_budgets, current_user):
     </div>
     """, unsafe_allow_html=True)
     
+    # Initialize form IDs in session state if not present
+    if 'expense_form_id' not in st.session_state:
+        st.session_state.expense_form_id = 0
+    if 'income_form_id' not in st.session_state:
+        st.session_state.income_form_id = 0
+    
     # Transaction Type Toggle
     transaction_type = st.radio("Type", ["Expense", "Income"], horizontal=True, label_visibility="collapsed")
     
@@ -616,21 +622,19 @@ def show_expense_form(category_budgets, current_user):
         )
         selected_category = category_map[selected_category_display]
         
-        # Initialize session state for form inputs if not exists
-        if 'new_expense_item' not in st.session_state: st.session_state.new_expense_item = ''
-        if 'new_expense_amount' not in st.session_state: st.session_state.new_expense_amount = 0.0
-        if 'new_expense_notes' not in st.session_state: st.session_state.new_expense_notes = ''
-
+        # Use dynamic keys for form inputs
+        form_id = st.session_state.expense_form_id
+        
         with st.form("expense_form", clear_on_submit=False):
             # Responsive columns - stack on mobile
             col1, col2 = st.columns([1, 1])
             
             with col1:
                 expense_date = st.date_input("Date", value=datetime.now())
-                expense_item = st.text_input("Item", placeholder="What did you buy?", key="new_expense_item")
+                expense_item = st.text_input("Item", placeholder="What did you buy?", key=f"new_expense_item_{form_id}")
             
             with col2:
-                expense_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f", key="new_expense_amount")
+                expense_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f", key=f"new_expense_amount_{form_id}")
                 paid_by = st.radio("Paid By", ["Hadi", "Ruhi"], index=0 if current_user == "Hadi" else 1)
             
             # Recurring expense
@@ -648,7 +652,7 @@ def show_expense_form(category_budgets, current_user):
                         st.text(f"Next due: {next_date}")
                         recurrence_next_due = next_date
             
-            notes = st.text_area("Notes (optional)", key="new_expense_notes")
+            notes = st.text_area("Notes (optional)", key=f"new_expense_notes_{form_id}")
             
             submitted = st.form_submit_button("Add Expense", type="primary")
             
@@ -672,34 +676,30 @@ def show_expense_form(category_budgets, current_user):
                     # Sync to cloud
                     sync_to_cloud()
                     
-                    # Clear form state
-                    st.session_state.new_expense_item = ''
-                    st.session_state.new_expense_amount = 0.0
-                    st.session_state.new_expense_notes = ''
+                    # Increment form ID to clear inputs
+                    st.session_state.expense_form_id += 1
                     
                     st.success(f"Expense added successfully! (৳{expense_amount:,.0f} on {expense_date_str})")
-                    # Force rerun to refresh the page
+                    # Force rerun to refresh the page and show new empty form
                     st.rerun()
                 else:
                     st.error("Please fill in all required fields.")
 
     else: # Income
-        # Initialize session state for income inputs if not exists
-        if 'new_income_source' not in st.session_state: st.session_state.new_income_source = ''
-        if 'new_income_amount' not in st.session_state: st.session_state.new_income_amount = 0.0
-        if 'new_income_notes' not in st.session_state: st.session_state.new_income_notes = ''
-
+        # Use dynamic keys for form inputs
+        form_id = st.session_state.income_form_id
+        
         with st.form("income_form", clear_on_submit=False):
             col1, col2 = st.columns([1, 1])
             
             with col1:
                 income_date = st.date_input("Date", value=datetime.now())
-                income_source = st.text_input("Source", placeholder="e.g. Salary, Business, Bonus", key="new_income_source")
+                income_source = st.text_input("Source", placeholder="e.g. Salary, Business, Bonus", key=f"new_income_source_{form_id}")
             
             with col2:
-                income_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f", key="new_income_amount")
+                income_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f", key=f"new_income_amount_{form_id}")
             
-            notes = st.text_area("Notes (optional)", key="new_income_notes")
+            notes = st.text_area("Notes (optional)", key=f"new_income_notes_{form_id}")
             
             submitted = st.form_submit_button("Add Income", type="primary")
             
@@ -722,10 +722,8 @@ def show_expense_form(category_budgets, current_user):
                     # Sync to cloud
                     sync_to_cloud()
                     
-                    # Clear form state
-                    st.session_state.new_income_source = ''
-                    st.session_state.new_income_amount = 0.0
-                    st.session_state.new_income_notes = ''
+                    # Increment form ID to clear inputs
+                    st.session_state.income_form_id += 1
                     
                     st.success(f"Income added successfully! (৳{income_amount:,.0f})")
                     st.rerun()
