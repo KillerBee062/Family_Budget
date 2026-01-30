@@ -1,0 +1,19 @@
+# System files
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Database (Local data)
+*.db
+budget_tracker.db
+
+# Streamlit
+.streamlit/secrets.toml

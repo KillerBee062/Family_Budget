@@ -21,297 +21,194 @@ st.set_page_config(
 
 # iOS-style CSS - Mobile optimized for iPhone
 st.markdown("""
-<style>
-    /* Viewport meta for mobile */
-    @media screen {
-        html {
-            -webkit-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
-        }
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+        --primary: #4F46E5;
+        --secondary: #10B981;
+        --danger: #EF4444;
+        --warning: #F59E0B;
+        --background: #F8FAFC;
+        --surface: #FFFFFF;
+        --text-main: #1E293B;
+        --text-light: #64748B;
+        --radius: 16px;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
-    
-    /* Global app background */
+
     .stApp {
-        background-color: #F2F2F7;
-        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+        background-color: var(--background);
+        font-family: 'Inter', sans-serif;
     }
     
-    /* Hide Streamlit branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* Hide Streamlit elements */
+    #MainMenu, footer, header {visibility: hidden;}
     
-    /* Main content area - Mobile responsive, ensure sidebar doesn't block */
+    /* Main container */
     .main .block-container {
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        max-width: 100% !important;
-        margin-left: 0 !important;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1000px;
+    }
+
+    /* Premium Cards */
+    .premium-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(255,255,255,0.5);
+        backdrop-filter: blur(10px);
+        margin-bottom: 1.5rem;
+        transition: transform 0.2s ease;
     }
     
-    /* When sidebar is open, ensure main content still accessible */
-    [data-testid="stSidebar"][aria-expanded="true"] ~ .main {
-        margin-left: 0 !important;
+    .premium-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
     }
-    
-    /* Mobile optimizations */
-    @media (max-width: 768px) {
-        .main .block-container {
-            padding: 0.5rem;
-        }
-        
-        /* Make columns stack on mobile */
-        [data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
-        }
-        
-        /* Completely hide sidebar on mobile */
-        [data-testid="stSidebar"] {
-            display: none !important;
-        }
-        
-        /* Hide sidebar toggle button on mobile */
-        [data-testid="collapsedControl"],
-        button[aria-label*="sidebar"],
-        button[data-testid*="sidebar"] {
-            display: none !important;
-        }
-        
-        /* Main content stays full width on mobile */
-        .main {
-            margin-left: 0 !important;
-            width: 100% !important;
-        }
-        
-        /* Larger touch targets for mobile */
-        .stButton > button {
-            min-height: 44px; /* iOS recommended touch target */
-            font-size: 16px; /* Prevents zoom on iOS */
-            width: 100%;
-        }
-        
-        /* Larger inputs for mobile */
-        .stTextInput > div > div > input,
-        .stNumberInput > div > div > input,
-        .stTextArea > div > div > textarea,
-        .stSelectbox > div > div,
-        .stDateInput > div > div > input {
-            font-size: 16px; /* Prevents zoom on iOS */
-            min-height: 44px;
-            padding: 0.875rem 1rem;
-        }
-        
-        /* Tabs - full width on mobile */
-        .stTabs [data-baseweb="tab"] {
-            flex: 1;
-            padding: 0.75rem 0.5rem;
-            font-size: 13px;
-        }
-        
-        /* Headers - smaller on mobile */
-        h1 {
-            font-size: 24px !important;
-        }
-        
-        h2 {
-            font-size: 20px !important;
-        }
-        
-        h3 {
-            font-size: 18px !important;
-        }
-        
-        /* Metrics cards - stack on mobile */
-        [data-testid="stMetricValue"] {
-            font-size: 24px;
-        }
-        
-    }
-    
-    /* Headers */
-    h1, h2, h3 {
-        font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-    }
-    
-    /* Buttons - iOS style with touch targets */
-    .stButton > button {
-        background-color: #007AFF;
+
+    /* Gradient Header */
+    .header-card {
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+        border-radius: var(--radius);
+        padding: 2.5rem 2rem;
         color: white;
-        border-radius: 12px;
-        border: none;
+        box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.3);
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .header-card::before {
+        content: '';
+        position: absolute;
+        top: 0; right: 0;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+        transform: translate(30%, -30%);
+    }
+
+    /* Metric Cards */
+    .stat-card {
+        background: white;
+        border-radius: var(--radius);
+        padding: 1.25rem;
+        box-shadow: var(--shadow);
+        border-left: 4px solid transparent;
+        height: 100%;
+    }
+    
+    .stat-label {
+        font-size: 13px;
         font-weight: 600;
-        padding: 0.75rem 1.5rem;
-        min-height: 44px; /* iOS touch target */
-        font-size: 16px;
-        transition: all 0.2s;
-        -webkit-tap-highlight-color: rgba(0,122,255,0.3);
-        cursor: pointer;
-        touch-action: manipulation;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
     }
     
-    .stButton > button:hover,
-    .stButton > button:active {
-        background-color: #0051D5;
-        transform: scale(0.98);
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-main);
+        letter-spacing: -0.02em;
     }
     
-    /* Inputs - iOS style with larger touch targets */
+    .stat-sub {
+        font-size: 12px;
+        font-weight: 500;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Input Fields */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
-    .stTextArea > div > div > textarea {
+    .stSelectbox > div > div, 
+    .stDateInput > div > div > input {
         border-radius: 12px;
-        border: 1px solid #E5E5EA;
-        padding: 0.875rem 1rem;
-        font-size: 16px; /* Prevents zoom on iOS */
-        min-height: 44px;
-        -webkit-appearance: none;
-        -webkit-tap-highlight-color: transparent;
+        border: 1px solid #E2E8F0;
+        background: white;
+        color: var(--text-main);
+        height: 48px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        transition: all 0.2s;
     }
     
     .stTextInput > div > div > input:focus,
     .stNumberInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus {
-        border-color: #007AFF;
-        box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
-        outline: none;
+    .stSelectbox > div > div[aria-expanded="true"],
+    .stDateInput > div > div > input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
-    
-    /* Select boxes */
-    .stSelectbox > div > div {
+
+    /* Custom Buttons */
+    .stButton > button {
         border-radius: 12px;
-        font-size: 16px;
-        min-height: 44px;
-    }
-    
-    /* Date input */
-    .stDateInput > div > div > input {
-        border-radius: 12px;
-        font-size: 16px;
-        min-height: 44px;
-    }
-    
-    /* Radio buttons - larger touch targets */
-    .stRadio > div > label {
-        padding: 0.75rem;
-        min-height: 44px;
-        font-size: 16px;
-    }
-    
-    /* Checkboxes - larger touch targets */
-    .stCheckbox > label {
-        font-size: 16px;
-        padding: 0.5rem 0;
-        min-height: 44px;
-    }
-    
-    /* Tabs - mobile friendly */
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 12px 12px 0 0;
-        padding: 0.75rem 1rem;
         font-weight: 600;
-        font-size: 14px;
-        min-height: 44px;
-        touch-action: manipulation;
+        height: 48px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s;
+        border: none;
     }
     
-    .stTabs [aria-selected="true"] {
-        background-color: #007AFF;
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
         color: white;
     }
     
-    /* Sidebar styling - Streamlit handles positioning, we just style it */
-    [data-testid="stSidebar"] {
-        background-color: white;
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.15);
     }
     
-    /* Ensure main content uses available space properly */
-    .main {
-        flex: 1 1 auto;
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: transparent;
     }
     
-    /* When sidebar is collapsed, main content should use full width */
-    [data-testid="stSidebar"][aria-expanded="false"] ~ .main {
-        margin-left: 0;
-    }
-    
-    @media (max-width: 768px) {
-        /* Completely hide sidebar on mobile */
-        [data-testid="stSidebar"] {
-            display: none !important;
-        }
-        
-        /* Hide sidebar toggle button on mobile */
-        [data-testid="collapsedControl"],
-        button[aria-label*="sidebar"],
-        button[data-testid*="sidebar"] {
-            display: none !important;
-        }
-    }
-    
-    /* Success/Error/Info messages */
-    .stSuccess {
-        border-radius: 12px;
-        border-left: 4px solid #34C759;
-        padding: 1rem;
-        font-size: 14px;
-    }
-    
-    .stError {
-        border-radius: 12px;
-        border-left: 4px solid #FF3B30;
-        padding: 1rem;
-        font-size: 14px;
-    }
-    
-    .stInfo {
-        border-radius: 12px;
-        border-left: 4px solid #007AFF;
-        padding: 1rem;
-        font-size: 14px;
-    }
-    
-    /* Expanders */
-    .streamlit-expanderHeader {
-        border-radius: 12px;
-        font-weight: 600;
-        padding: 1rem;
-        min-height: 44px;
-        font-size: 16px;
-    }
-    
-    /* Dividers */
-    hr {
-        border-color: #E5E5EA;
-        margin: 1.5rem 0;
-    }
-    
-    /* Prevent text selection on buttons (iOS) */
-    .stButton > button,
     .stTabs [data-baseweb="tab"] {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
+        height: 44px;
+        border-radius: 10px;
+        background: white;
+        border: 1px solid #E2E8F0;
+        color: var(--text-light);
+        flex: 1;
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
     
-    /* Smooth scrolling for mobile */
-    html {
-        -webkit-overflow-scrolling: touch;
-        scroll-behavior: smooth;
+    .stTabs [aria-selected="true"] {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    /* Progress Bar */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #4F46E5 0%, #818CF8 100%);
+        border-radius: 999px;
     }
     
-    /* Fix for iOS Safari viewport */
-    @supports (-webkit-touch-callout: none) {
-        .main .block-container {
-            min-height: -webkit-fill-available;
+    /* Adjust for mobile */
+    @media (max-width: 640px) {
+        .header-card {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-value {
+            font-size: 24px;
         }
     }
-</style>
+    </style>
 """, unsafe_allow_html=True)
 
 # Initialize database
@@ -331,6 +228,15 @@ def init_db():
         recurrence_frequency TEXT,
         recurrence_next_due TEXT,
         recurrence_active INTEGER DEFAULT 0
+    )''')
+    
+    # Income table
+    c.execute('''CREATE TABLE IF NOT EXISTS income (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        source TEXT NOT NULL,
+        amount REAL NOT NULL,
+        notes TEXT
     )''')
     
     # Category budgets table
@@ -504,6 +410,17 @@ def main():
     c.execute('SELECT * FROM category_budgets ORDER BY group_name, category')
     category_budgets = [dict(row) for row in c.fetchall()]
     
+    # Get income for current month
+    c.execute('''SELECT * FROM income 
+                 WHERE strftime('%Y', date) = ? 
+                 AND strftime('%m', date) = ?
+                 ORDER BY date DESC''', (str(current_year), f"{current_month_num:02d}"))
+    current_month_income = [dict(row) for row in c.fetchall()]
+
+    # Get all income
+    c.execute('SELECT * FROM income ORDER BY date DESC')
+    all_income = [dict(row) for row in c.fetchall()]
+
     # Get settings
     user, google_script_url, last_synced = get_settings()
     
@@ -512,98 +429,62 @@ def main():
     # Calculate totals
     total_budget_limit = sum(b['limit_amount'] for b in category_budgets)
     total_spent = sum(e['amount'] for e in current_month_expenses)
-    remaining = total_budget_limit - total_spent
+    total_income = sum(i['amount'] for i in current_month_income)
     
-    # iOS-style Header
+    # Metrics
+    investable_surplus = total_income - total_spent
+    remaining_budget = total_budget_limit - total_spent
+    
+    # Premium Header
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                padding: 2rem 1.5rem; 
-                border-radius: 16px; 
-                margin-bottom: 2rem;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <h1 style="color: white; 
-                   font-size: 32px; 
-                   font-weight: 700; 
-                   margin: 0 0 0.5rem 0;
-                   letter-spacing: -1px;">💰 Family Budget Tracker</h1>
-        <p style="color: rgba(255,255,255,0.9); 
-                  font-size: 14px; 
-                  margin: 0;
-                  font-weight: 500;">{current_month} {current_year}{' • Hi, ' + user + '!' if user else ''}</p>
+    <div class="header-card">
+        <h1 style="margin:0; font-size: 2.2rem; margin-bottom: 0.5rem;">Family Budget</h1>
+        <div style="font-size: 1.1rem; opacity: 0.9; font-weight: 500;">
+            {current_month} {current_year} {f'• Hello, {user}' if user else ''}
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar is now empty - all settings moved to Settings tab
     with st.sidebar:
-        st.empty()  # Empty sidebar
+        st.empty()
     
-    # iOS-style Metrics with custom colors
-    st.markdown("""
-    <style>
-    .metric-card {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        text-align: center;
-        border: 1px solid rgba(0,0,0,0.05);
-    }
-    .metric-title {
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #8E8E93;
-        margin-bottom: 8px;
-    }
-    .metric-value {
-        font-size: 28px;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-        margin: 0;
-    }
-    .metric-budget {
-        color: #FF9500;
-    }
-    .metric-spent {
-        color: #FF3B30;
-    }
-    .metric-remaining {
-        color: #34C759;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
+    # Premium Stats Grid
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Total Budget</div>
-            <div class="metric-value metric-budget">৳{total_budget_limit:,.0f}</div>
+        <div class="stat-card" style="border-left-color: #10B981;">
+            <div class="stat-label">Total Income</div>
+            <div class="stat-value" style="color: #10B981;">৳{total_income:,.0f}</div>
+            <div class="stat-sub" style="color: #10B981;">
+                <span>💰</span> Earnings
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        expense_count = len(current_month_expenses)
-        expense_text = f"<div style='font-size: 11px; color: #8E8E93; margin-top: 4px;'>{expense_count} expense{'s' if expense_count != 1 else ''}</div>" if expense_count > 0 else ""
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Total Spent</div>
-            <div class="metric-value metric-spent">৳{total_spent:,.0f}</div>
-            {expense_text}
+        <div class="stat-card" style="border-left-color: #4F46E5;">
+            <div class="stat-label">Total Budget</div>
+            <div class="stat-value">৳{total_budget_limit:,.0f}</div>
+            <div class="stat-sub" style="color: #4F46E5;">
+                <span>🎯</span> Monthly Goal
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
-        remaining_color = "#34C759" if remaining >= 0 else "#FF3B30"
-        remaining_class = "metric-remaining" if remaining >= 0 else "metric-spent"
-        over_budget_text = f"<div style='font-size: 11px; color: #FF3B30; margin-top: 4px;'>Over by ৳{abs(remaining):,.0f}</div>" if remaining < 0 else ""
+        is_positive = investable_surplus >= 0
+        color = "#F59E0B" if is_positive else "#EF4444"
+        icon = "🚀" if is_positive else "⚠️"
+        
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Remaining</div>
-            <div class="metric-value {remaining_class}" style="color: {remaining_color};">৳{remaining:,.0f}</div>
-            {over_budget_text}
+        <div class="stat-card" style="border-left-color: {color};">
+            <div class="stat-label">Investable Surplus</div>
+            <div class="stat-value" style="color: {color}">৳{investable_surplus:,.0f}</div>
+            <div class="stat-sub" style="color: {color};">
+                <span>{icon}</span> {f'Ready to invest' if is_positive else f'Deficit ৳{abs(investable_surplus):,.0f}'}
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -624,7 +505,7 @@ def main():
         show_expense_form(category_budgets, current_user)
     
     with tab2:
-        show_dashboard(current_month_expenses, all_expenses, category_budgets)
+        show_dashboard(current_month_expenses, all_expenses, category_budgets, current_month_income)
     
     with tab3:
         show_history(all_expenses, category_budgets)
@@ -637,122 +518,150 @@ def main():
 
 def show_expense_form(category_budgets, current_user):
     st.markdown("""
-    <div style="background: white; 
-                padding: 1.5rem; 
-                border-radius: 16px; 
-                margin-bottom: 1.5rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="margin: 0 0 1rem 0; font-size: 24px; font-weight: 700;">➕ Add New Expense</h2>
+    <div class="premium-card">
+        <h3 style="margin: 0; color: var(--text-main);">➕ New Transaction</h3>
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialize session state for category selection
-    if 'selected_group' not in st.session_state:
+    # Transaction Type Toggle
+    transaction_type = st.radio("Type", ["Expense", "Income"], horizontal=True, label_visibility="collapsed")
+    
+    if transaction_type == "Expense":
+        # Initialize session state for category selection
+        if 'selected_group' not in st.session_state:
+            groups = sorted(list(set(b['group_name'] for b in category_budgets)))
+            st.session_state.selected_group = groups[0] if groups else None
+        
+        # Group selection outside form so it updates immediately
         groups = sorted(list(set(b['group_name'] for b in category_budgets)))
-        st.session_state.selected_group = groups[0] if groups else None
-    
-    # Group selection outside form so it updates immediately
-    groups = sorted(list(set(b['group_name'] for b in category_budgets)))
-    selected_group = st.selectbox(
-        "Category Group", 
-        groups,
-        index=groups.index(st.session_state.selected_group) if st.session_state.selected_group in groups else 0,
-        key="group_select"
-    )
-    
-    # Update session state when group changes
-    st.session_state.selected_group = selected_group
-    
-    # Category selection based on group
-    categories_in_group = [b for b in category_budgets if b['group_name'] == selected_group]
-    
-    if not categories_in_group:
-        st.warning("No categories found in this group")
-        return
-    
-    # Create category options with icons
-    category_list = [f"{b.get('icon', '📦')} {b['category']}" for b in categories_in_group]
-    category_map = {f"{b.get('icon', '📦')} {b['category']}": b['category'] for b in categories_in_group}
-    
-    selected_category_display = st.selectbox(
-        "Category", 
-        category_list,
-        key="category_select"
-    )
-    selected_category = category_map[selected_category_display]
-    
-    with st.form("expense_form"):
-        # Responsive columns - stack on mobile
-        col1, col2 = st.columns([1, 1])
+        selected_group = st.selectbox(
+            "Category Group", 
+            groups,
+            index=groups.index(st.session_state.selected_group) if st.session_state.selected_group in groups else 0,
+            key="group_select"
+        )
         
-        with col1:
-            expense_date = st.date_input("Date", value=datetime.now())
-            expense_item = st.text_input("Item", placeholder="What did you buy?")
+        # Update session state when group changes
+        st.session_state.selected_group = selected_group
         
-        with col2:
-            expense_amount = st.number_input("Amount (৳)", min_value=0.0, step=0.01, format="%.2f")
-            paid_by = st.radio("Paid By", ["Hadi", "Ruhi"], index=0 if current_user == "Hadi" else 1)
+        # Category selection based on group
+        categories_in_group = [b for b in category_budgets if b['group_name'] == selected_group]
         
-        # Recurring expense
-        is_recurring = st.checkbox("Recurring Payment?")
-        recurrence_frequency = None
-        recurrence_next_due = None
+        if not categories_in_group:
+            st.warning("No categories found in this group")
+            return
         
-        if is_recurring:
-            col5, col6 = st.columns(2)
-            with col5:
-                recurrence_frequency = st.selectbox("Frequency", ["weekly", "monthly"])
-            with col6:
-                if recurrence_frequency:
-                    next_date = calculate_next_date(expense_date.strftime('%Y-%m-%d'), recurrence_frequency)
-                    st.text(f"Next due: {next_date}")
-                    recurrence_next_due = next_date
+        # Create category options with icons
+        category_list = [f"{b.get('icon', '📦')} {b['category']}" for b in categories_in_group]
+        category_map = {f"{b.get('icon', '📦')} {b['category']}": b['category'] for b in categories_in_group}
         
-        notes = st.text_area("Notes (optional)")
+        selected_category_display = st.selectbox(
+            "Category", 
+            category_list,
+            key="category_select"
+        )
+        selected_category = category_map[selected_category_display]
         
-        submitted = st.form_submit_button("Add Expense", type="primary")
-        
-        if submitted:
-            if expense_item and expense_amount > 0 and selected_category:
-                expense_id = str(uuid.uuid4())
-                expense_date_str = expense_date.strftime('%Y-%m-%d')
-                
-                conn = get_db()
-                c = conn.cursor()
-                
-                c.execute('''INSERT INTO expenses 
-                            (id, date, item, category, amount, paid_by, notes, recurrence_frequency, recurrence_next_due, recurrence_active)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                         (expense_id, expense_date_str, expense_item, selected_category,
-                          expense_amount, paid_by, notes, recurrence_frequency, recurrence_next_due, 1 if is_recurring else 0))
-                
-                conn.commit()
-                conn.close()
-                
-                # Sync to cloud
-                sync_to_cloud()
-                
-                st.success(f"Expense added successfully! (৳{expense_amount:,.0f} on {expense_date_str})")
-                # Force rerun to refresh the page
-                st.rerun()
-            else:
-                error_msg = "Please fill in all required fields: "
-                if not expense_item:
-                    error_msg += "Item, "
-                if expense_amount <= 0:
-                    error_msg += "Amount > 0, "
-                if not selected_category:
-                    error_msg += "Category"
-                st.error(error_msg.rstrip(", "))
+        with st.form("expense_form"):
+            # Responsive columns - stack on mobile
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                expense_date = st.date_input("Date", value=datetime.now())
+                expense_item = st.text_input("Item", placeholder="What did you buy?")
+            
+            with col2:
+                expense_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f")
+                paid_by = st.radio("Paid By", ["Hadi", "Ruhi"], index=0 if current_user == "Hadi" else 1)
+            
+            # Recurring expense
+            is_recurring = st.checkbox("Recurring Payment?")
+            recurrence_frequency = None
+            recurrence_next_due = None
+            
+            if is_recurring:
+                col5, col6 = st.columns(2)
+                with col5:
+                    recurrence_frequency = st.selectbox("Frequency", ["weekly", "monthly"])
+                with col6:
+                    if recurrence_frequency:
+                        next_date = calculate_next_date(expense_date.strftime('%Y-%m-%d'), recurrence_frequency)
+                        st.text(f"Next due: {next_date}")
+                        recurrence_next_due = next_date
+            
+            notes = st.text_area("Notes (optional)")
+            
+            submitted = st.form_submit_button("Add Expense", type="primary")
+            
+            if submitted:
+                if expense_item and expense_amount > 0 and selected_category:
+                    expense_id = str(uuid.uuid4())
+                    expense_date_str = expense_date.strftime('%Y-%m-%d')
+                    
+                    conn = get_db()
+                    c = conn.cursor()
+                    
+                    c.execute('''INSERT INTO expenses 
+                                (id, date, item, category, amount, paid_by, notes, recurrence_frequency, recurrence_next_due, recurrence_active)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                             (expense_id, expense_date_str, expense_item, selected_category,
+                              expense_amount, paid_by, notes, recurrence_frequency, recurrence_next_due, 1 if is_recurring else 0))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    # Sync to cloud
+                    sync_to_cloud()
+                    
+                    st.success(f"Expense added successfully! (৳{expense_amount:,.0f} on {expense_date_str})")
+                    # Force rerun to refresh the page
+                    st.rerun()
+                else:
+                    st.error("Please fill in all required fields.")
 
-def show_dashboard(current_month_expenses, all_expenses, category_budgets):
+    else: # Income
+        with st.form("income_form"):
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                income_date = st.date_input("Date", value=datetime.now())
+                income_source = st.text_input("Source", placeholder="e.g. Salary, Business, Bonus")
+            
+            with col2:
+                income_amount = st.number_input("Amount (৳)", min_value=0.0, step=10.0, format="%.0f")
+            
+            notes = st.text_area("Notes (optional)")
+            
+            submitted = st.form_submit_button("Add Income", type="primary")
+            
+            if submitted:
+                if income_source and income_amount > 0:
+                    income_id = str(uuid.uuid4())
+                    income_date_str = income_date.strftime('%Y-%m-%d')
+                    
+                    conn = get_db()
+                    c = conn.cursor()
+                    
+                    c.execute('''INSERT INTO income 
+                                (id, date, source, amount, notes)
+                                VALUES (?, ?, ?, ?, ?)''',
+                             (income_id, income_date_str, income_source, income_amount, notes))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    # Sync to cloud
+                    sync_to_cloud()
+                    
+                    st.success(f"Income added successfully! (৳{income_amount:,.0f})")
+                    st.rerun()
+                else:
+                    st.error("Please fill in Source and Amount.")
+                
+def show_dashboard(current_month_expenses, all_expenses, category_budgets, current_month_income):
     st.markdown("""
-    <div style="background: white; 
-                padding: 1.5rem; 
-                border-radius: 16px; 
-                margin-bottom: 1.5rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="margin: 0; font-size: 24px; font-weight: 700;">📊 Dashboard</h2>
+    <div class="premium-card">
+        <h3 style="margin: 0; color: var(--text-main);">📊 Spending Analytics</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -816,10 +725,15 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets):
             payer_data[payer] = payer_data.get(payer, 0) + expense['amount']
         
         df_payer = pd.DataFrame(list(payer_data.items()), columns=['Person', 'Amount'])
-        fig_bar = px.bar(df_payer, x='Person', y='Amount', 
-                        title="Spending by Person",
-                        color='Person',
-                        color_discrete_map={'Hadi': '#007AFF', 'Ruhi': '#34C759'})
+        fig_bar = px.bar(df_payer, x='Person', y='Amount',                         title="Spending by Person",
+                         color='Person',
+                         color_discrete_map={'Hadi': '#4F46E5', 'Ruhi': '#10B981'})
+        fig_bar.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font_family="Inter",
+            title_font_size=16
+        )
         st.plotly_chart(fig_bar, use_container_width=True)
     
     # Trends chart
@@ -889,12 +803,8 @@ def prepare_trend_data(expenses, time_frame):
 
 def show_history(all_expenses, category_budgets):
     st.markdown("""
-    <div style="background: white; 
-                padding: 1.5rem; 
-                border-radius: 16px; 
-                margin-bottom: 1.5rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="margin: 0; font-size: 24px; font-weight: 700;">📋 Expense History</h2>
+    <div class="premium-card">
+        <h3 style="margin: 0; color: var(--text-main);">📋 Transaction History</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1045,43 +955,60 @@ def show_history(all_expenses, category_budgets):
                             st.session_state.editing_expense_id = None
                             st.rerun()
         else:
-            # Display expense
+            # Premium List Item
             with st.container():
-                col1, col2, col3, col4, col5 = st.columns([3, 2, 1, 1, 1])
-                with col1:
-                    st.write(f"**{expense['item']}**")
-                    st.caption(f"{category_icons.get(expense['category'], '📦')} {expense['category']} • {expense['paid_by']}")
-                with col2:
-                    st.caption(expense['date'])
-                    if expense.get('notes'):
-                        st.caption(f"💬 {expense['notes']}")
-                with col3:
-                    st.write(f"**৳{expense['amount']:,.0f}**")
-                with col4:
-                    if expense.get('recurrence_active'):
-                        st.badge("🔄", type="info")
-                with col5:
-                    col_edit, col_delete = st.columns(2)
-                    with col_edit:
-                        if st.button("✏️", key=f"edit_btn_{expense_id}", help="Edit"):
-                            st.session_state.editing_expense_id = expense_id
-                            st.rerun()
-                    with col_delete:
-                        if st.button("🗑️", key=f"delete_btn_{expense_id}", help="Delete"):
-                            # Delete expense
-                            conn = get_db()
-                            c = conn.cursor()
-                            c.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
-                            conn.commit()
-                            conn.close()
-                            
-                            # Sync to cloud
-                            sync_to_cloud()
-                            
-                            st.success("Expense deleted successfully!")
-                            st.rerun()
+                st.markdown(f"""
+                <div style="
+                    background: white;
+                    border-radius: 12px;
+                    padding: 1rem;
+                    margin-bottom: 0.75rem;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                    border: 1px solid #E2E8F0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                ">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="
+                            background: #F1F5F9;
+                            width: 40px; height: 40px;
+                            border-radius: 10px;
+                            display: flex; align-items: center; justify-content: center;
+                            font-size: 20px;
+                        ">
+                            {category_icons.get(expense['category'], '📦')}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1E293B;">{expense['item']}</div>
+                            <div style="font-size: 12px; color: #64748B;">
+                                {expense['category']} • {expense['paid_by']} { '• 🔄 Recurring' if expense.get('recurrence_active') else ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 700; color: #1E293B;">৳{expense['amount']:,.0f}</div>
+                        <div style="font-size: 11px; color: #94A3B8;">{expense['date']}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                st.divider()
+                # Action buttons in a small row below (optional)
+                col_edit, col_delete, _ = st.columns([1, 1, 8])
+                with col_edit:
+                    if st.button("✏️", key=f"edit_btn_{expense_id}", help="Edit"):
+                         st.session_state.editing_expense_id = expense_id
+                         st.rerun()
+                with col_delete:
+                    if st.button("🗑️", key=f"delete_btn_{expense_id}", help="Delete"):
+                        conn = get_db()
+                        c = conn.cursor()
+                        c.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
+                        conn.commit()
+                        conn.close()
+                        sync_to_cloud()
+                        st.success("Deleted")
+                        st.rerun()
 
 def show_settings_page(user, google_script_url, last_synced, category_budgets):
     st.markdown("""
@@ -1249,12 +1176,8 @@ def show_settings_page(user, google_script_url, last_synced, category_budgets):
 
 def show_budget_config(category_budgets):
     st.markdown("""
-    <div style="background: white; 
-                padding: 1.5rem; 
-                border-radius: 16px; 
-                margin-bottom: 1.5rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="margin: 0 0 1rem 0; font-size: 24px; font-weight: 700;">⚙️ Budget Configuration</h2>
+    <div class="premium-card">
+        <h3 style="margin: 0; color: var(--text-main);">Configuration</h3>
     </div>
     """, unsafe_allow_html=True)
     st.info("💡 Tip: Changes saved here will be synced to Google Sheets.")
@@ -1555,6 +1478,13 @@ def sync_from_cloud(url: str):
                     c.execute('''INSERT INTO category_budgets (category, group_name, limit_amount, icon)
                                  VALUES (?, ?, ?, ?)''',
                              (cat['category'], cat['group'], cat['limit'], cat.get('icon', '📦')))
+
+            if 'income' in data:
+                c.execute('DELETE FROM income')
+                for inc in data['income']:
+                    c.execute('''INSERT INTO income (id, date, source, amount, notes)
+                                 VALUES (?, ?, ?, ?, ?)''',
+                             (inc['id'], inc['date'], inc['source'], inc['amount'], inc.get('notes', '')))
             
             conn.commit()
             conn.close()
@@ -1610,10 +1540,24 @@ def sync_to_cloud():
             'icon': cat.get('icon', '📦')
         })
     
+    # Get income
+    c.execute('SELECT * FROM income')
+    income_list = []
+    for row in c.fetchall():
+        inc = dict(row)
+        income_list.append({
+            'id': inc['id'],
+            'date': inc['date'],
+            'source': inc['source'],
+            'amount': inc['amount'],
+            'notes': inc.get('notes', '')
+        })
+    
     current_month = datetime.now().strftime('%B')
     
     payload = {
         'expenses': expenses,
+        'income': income_list,
         'categories': categories,
         'budgetMonth': current_month,
         'lastUpdated': datetime.now().isoformat()
