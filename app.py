@@ -843,7 +843,7 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
             yaxis_title=None,
             margin=dict(l=0, r=0, t=30, b=0)
         )
-        fig_trend.update_traces(line_color='#6366f1', fill_color='rgba(99, 102, 241, 0.2)')
+        fig_trend.update_traces(line_color='#6366f1', fillcolor='rgba(99, 102, 241, 0.2)')
         st.plotly_chart(fig_trend, use_container_width=True)
 
 def prepare_trend_data(expenses, time_frame):
