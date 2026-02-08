@@ -8,6 +8,7 @@ import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit.components.v1 as components
 
 DATABASE = 'budget_tracker.db'
 
@@ -342,6 +343,10 @@ def process_recurring_expenses():
     
     conn.commit()
     conn.close()
+    
+    if added_count > 0:
+        sync_to_cloud()
+        
     return added_count
 
 def get_settings():
@@ -355,7 +360,9 @@ def get_settings():
     
     c.execute('SELECT value FROM settings WHERE key = ?', ('googleScriptUrl',))
     url_row = c.fetchone()
-    google_script_url = url_row[0] if url_row else ''
+    # Default URL provided by user
+    default_url = "https://script.google.com/macros/s/AKfycbxi45hDC5UiXLxxdGqNzrfKP9uydfZDb0YVSifE3W-2q9saFiHINQrSeub5QrrCkZkA/exec"
+    google_script_url = url_row[0] if url_row else default_url
     
     c.execute('SELECT value FROM settings WHERE key = ?', ('lastSynced',))
     last_synced_row = c.fetchone()
@@ -527,8 +534,8 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Tabs - including Settings tab
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "⚙️ Budget Config", "⚙️ Settings & Sync"])
+    # Tabs - including Settings and Live Sheet tab
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "🌐 Live Sheet", "⚙️ Budget Config", "⚙️ Settings & Sync"])
     
     with tab1:
         # Get current user from settings for expense form
@@ -542,9 +549,12 @@ def main():
         show_history(all_expenses, category_budgets, all_income)
     
     with tab4:
+        show_live_sheet(google_script_url)
+
+    with tab5:
         show_budget_config(category_budgets)
     
-    with tab5:
+    with tab6:
         show_settings_page(user, google_script_url, last_synced, category_budgets)
 
 def show_expense_form(category_budgets, current_user):
@@ -1394,6 +1404,20 @@ def show_settings_page(user, google_script_url, last_synced, category_budgets):
             </p>
         </div>
         """, unsafe_allow_html=True)
+
+def show_live_sheet(google_script_url):
+    st.markdown("""
+    <div class="premium-card">
+        <h3 style="margin: 0; color: var(--text-main);">🌐 Live Family Budget Sheet</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if google_script_url:
+        st.info("💡 You may need to sign in to Google to view the sheet below.")
+        # Embed the Apps Script web app
+        components.iframe(google_script_url, height=800, scrolling=True)
+    else:
+        st.warning("Google Apps Script URL is not configured. Please go to Settings & Sync to configure it.")
 
 def show_budget_config(category_budgets):
     st.markdown("""
