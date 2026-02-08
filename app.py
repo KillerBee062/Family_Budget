@@ -507,7 +507,26 @@ def main():
             badge_text = "#065F46"
             bar_color = "#10B981"
         
-        budget_bar_html = f"""<div style="margin-top: 12px;"><div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;"><div><div style="font-size: 11px; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Spent</div><div style="font-size: 1.5rem; font-weight: 700; color: #1E293B;">৳{core_spent:,.0f}</div></div><div style="background: {badge_bg}; color: {badge_text}; padding: 4px 10px; border-radius: 99px; font-size: 0.85rem; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">{budget_pct:.0f}%</div></div><div style="height: 10px; width: 100%; background: #F1F5F9; border-radius: 99px; overflow: hidden;"><div style="width: {min(budget_pct, 100)}%; height: 100%; background: {bar_color}; border-radius: 99px;"></div></div></div>"""
+        remaining_amount = core_budget_limit - core_spent
+        
+        budget_bar_html = f"""<div style="margin-top: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;">
+                <div>
+                    <div style="font-size: 11px; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Spent</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1E293B;">৳{core_spent:,.0f}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 11px; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Remaining</div>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: {bar_color};">৳{max(0, remaining_amount):,.0f}</div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <div style="width: 100%; height: 10px; background: #F1F5F9; border-radius: 99px; overflow: hidden;">
+                    <div style="width: {min(budget_pct, 100)}%; height: 100%; background: {bar_color}; border-radius: 99px;"></div>
+                </div>
+                <div style="background: {badge_bg}; color: {badge_text}; padding: 2px 8px; border-radius: 99px; font-size: 0.75rem; font-weight: 700; margin-left: 8px; white-space: nowrap;">{budget_pct:.0f}%</div>
+            </div>
+        </div>"""
 
         st.markdown(f"""<div class="stat-card" style="border-left-color: {bar_color};"><div class="stat-label">Total Budget</div><div class="stat-value">৳{core_budget_limit:,.0f}</div><div class="stat-sub" style="color: {bar_color};"><span>🎯</span> Monthly Goal</div>{budget_bar_html}</div>""", unsafe_allow_html=True)
     
