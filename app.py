@@ -9,6 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
+import textwrap
 
 DATABASE = 'budget_tracker.db'
 
@@ -23,24 +24,28 @@ st.set_page_config(
 # iOS-style CSS - Mobile optimized for iPhone
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    /* iOS Design System */
+    /* SF Pro Display is Apple-proprietary, falling back to system fonts */
 
     :root {
-        --primary: #4F46E5;
-        --secondary: #10B981;
-        --danger: #EF4444;
-        --warning: #F59E0B;
-        --background: #F8FAFC;
-        --surface: #FFFFFF;
-        --text-main: #1E293B;
-        --text-light: #64748B;
-        --radius: 16px;
-        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --ios-bg: #F2F2F7;
+        --ios-card-bg: #FFFFFF;
+        --ios-text: #000000;
+        --ios-text-secondary: #8E8E93;
+        --ios-blue: #007AFF;
+        --ios-green: #34C759;
+        --ios-red: #FF3B30;
+        --ios-orange: #FF9500;
+        --ios-indigo: #5856D6;
+        --ios-gray: #8E8E93;
+        --ios-separator: #C6C6C8;
+        --radius: 12px;
     }
 
     .stApp {
-        background-color: var(--background);
-        font-family: 'Inter', sans-serif;
+        background-color: var(--ios-bg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: var(--ios-text);
     }
     
     /* Hide Streamlit elements */
@@ -48,166 +53,165 @@ st.markdown("""
     
     /* Main container */
     .main .block-container {
-        padding-top: 2rem;
+        padding-top: 3rem;
         padding-bottom: 3rem;
         max-width: 1000px;
     }
 
-    /* Premium Cards */
+    /* iOS Card Style (replaces Premium Card) */
     .premium-card {
-        background: rgba(255, 255, 255, 0.9);
+        background: var(--ios-card-bg);
         border-radius: var(--radius);
-        padding: 1.5rem;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(255,255,255,0.5);
-        backdrop-filter: blur(10px);
-        margin-bottom: 1.5rem;
-        transition: transform 0.2s ease;
-    }
-    
-    .premium-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        margin-bottom: 16px;
+        border: none;
     }
 
-    /* Gradient Header */
+    /* iOS Header Style */
     .header-card {
-        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-        border-radius: var(--radius);
-        padding: 2.5rem 2rem;
-        color: white;
-        box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.3);
-        margin-bottom: 2rem;
-        position: relative;
-        overflow: hidden;
+        background: transparent;
+        padding: 0 0 16px 0;
+        margin-bottom: 16px;
+        color: var(--ios-text);
+        box-shadow: none;
+        border-radius: 0;
     }
     
-    .header-card::before {
-        content: '';
-        position: absolute;
-        top: 0; right: 0;
-        width: 300px;
-        height: 300px;
-        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
-        transform: translate(30%, -30%);
+    .header-card h1 {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        color: var(--ios-text);
+        margin-bottom: 4px;
     }
 
-    /* Metric Cards */
+    /* iOS Grid / Stat Card Style */
     .stat-card {
-        background: white;
+        background: var(--ios-card-bg);
         border-radius: var(--radius);
-        padding: 1.25rem;
-        box-shadow: var(--shadow);
-        border-left: 4px solid transparent;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     
     .stat-label {
         font-size: 13px;
         font-weight: 600;
-        color: var(--text-light);
+        color: var(--ios-text-secondary);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.5rem;
+        margin-bottom: 4px;
     }
     
     .stat-value {
         font-size: 28px;
         font-weight: 700;
-        color: var(--text-main);
-        letter-spacing: -0.02em;
+        color: var(--ios-text);
+        letter-spacing: -0.5px;
     }
     
     .stat-sub {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
-        margin-top: 0.5rem;
+        margin-top: 4px;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 6px;
+        color: var(--ios-text-secondary);
     }
 
-    /* Input Fields */
+    /* Input Fields - iOS Grouped Style */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stSelectbox > div > div, 
     .stDateInput > div > div > input {
-        border-radius: 12px;
-        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        border: 1px solid #E5E5EA; /* System Gray 5 */
         background: white;
-        color: var(--text-main);
-        height: 48px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        transition: all 0.2s;
+        color: var(--ios-text);
+        height: 44px;
+        box-shadow: none;
     }
     
     .stTextInput > div > div > input:focus,
     .stNumberInput > div > div > input:focus,
     .stSelectbox > div > div[aria-expanded="true"],
     .stDateInput > div > div > input:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        border-color: var(--ios-blue);
+        box-shadow: 0 0 0 1px var(--ios-blue);
     }
 
-    /* Custom Buttons */
+    /* Custom Buttons - iOS Style */
     .stButton > button {
-        border-radius: 12px;
+        border-radius: 10px;
         font-weight: 600;
-        height: 48px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        transition: all 0.2s;
+        height: 44px;
+        box-shadow: none;
         border: none;
+        background: #E5E5EA; /* System Gray 5 */
+        color: var(--ios-blue);
     }
     
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+        background: var(--ios-blue);
         color: white;
     }
     
     .stButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.15);
+        opacity: 0.8;
+        transform: none;
+        box-shadow: none;
     }
     
-    /* Tabs */
+    /* Tabs - iOS Segmented Control Style */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: transparent;
+        background: #E5E5EA;
+        padding: 4px;
+        border-radius: 10px;
+        gap: 0;
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 44px;
-        border-radius: 10px;
-        background: white;
-        border: 1px solid #E2E8F0;
-        color: var(--text-light);
-        flex: 1;
-        font-weight: 600;
-        font-size: 14px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        height: 36px;
+        border-radius: 7px;
+        background: transparent;
+        border: none;
+        color: var(--ios-text);
+        font-weight: 500;
+        font-size: 13px;
+        box-shadow: none;
+        margin: 0;
     }
     
     .stTabs [aria-selected="true"] {
-        background: var(--primary);
-        color: white;
-        border-color: var(--primary);
+        background: white;
+        color: var(--ios-text);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     /* Progress Bar */
     .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #4F46E5 0%, #818CF8 100%);
+        background: var(--ios-blue);
         border-radius: 999px;
     }
-    
-    /* Adjust for mobile */
-    @media (max-width: 640px) {
-        .header-card {
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .stat-value {
-            font-size: 24px;
-        }
+
+    /* Custom Scrollbar for iframes */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent; 
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #C1C1C1; 
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #A8A8A8; 
     }
     </style>
 """, unsafe_allow_html=True)
@@ -448,102 +452,151 @@ def main():
     investable_surplus = total_income - total_spent
     remaining_budget = total_budget_limit - total_spent
     
-    # Premium Header
-    st.markdown(f"""<div class="header-card"><h1 style="margin:0; font-size: 2.2rem; margin-bottom: 0.5rem;">Family Budget</h1><div style="font-size: 1.1rem; opacity: 0.9; font-weight: 500;">{current_month} {current_year} {f'• Hello, {user}' if user else ''}</div></div>""", unsafe_allow_html=True)
+    # iOS Header
+    st.markdown(f"""
+    <div class="header-card">
+        <h1>Family Budget</h1>
+        <div style="font-size: 17px; font-weight: 600; color: var(--ios-text-secondary);">{current_month} {current_year}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     with st.sidebar:
         st.empty()
     
-    # Premium Stats Grid
-    col1, col2, col3 = st.columns(3)
+    # iOS Grid Layout (2x2)
+    row1_col1, row1_col2 = st.columns(2)
+    row2_col1, row2_col2 = st.columns(2)
     
-    with col1:
-        # Income breakdown visualization
-        income_sources = {}
-        for inc in current_month_income:
-            src = inc['source']
-            income_sources[src] = income_sources.get(src, 0) + inc['amount']
+    # Card 1: Income (Green)
+    with row1_col1:
+        income_pct = min((total_income / core_budget_limit * 100), 100) if core_budget_limit > 0 else 0
         
-        income_bar_html = ""
-        if total_income > 0:
-            income_bar_html = '<div style="display: flex; height: 8px; width: 100%; background: #F3F4F6; border-radius: 4px; overflow: hidden; margin-top: 12px;">'
-            colors = ['#10B981', '#34D399', '#6EE7B7', '#A7F3D0']
-            idx = 0
-            for source, amount in sorted(income_sources.items(), key=lambda x: x[1], reverse=True):
-                pct = (amount / total_income) * 100
-                color = colors[idx % len(colors)]
-                income_bar_html += f'<div style="width: {pct}%; background: {color};" title="{source}: ৳{amount:,.0f} ({pct:.0f}%)"></div>'
-                idx += 1
-            income_bar_html += '</div>'
-            
-            # Simple Legend
-            income_bar_html += '<div style="display: flex; gap: 8px; margin-top: 6px; font-size: 10px; color: #64748B; flex-wrap: wrap;">'
-            idx = 0
-            for source, amount in sorted(income_sources.items(), key=lambda x: x[1], reverse=True)[:3]: # Show top 3
-                 color = colors[idx % len(colors)]
-                 income_bar_html += f'<div style="display: flex; align-items: center; gap: 3px;"><div style="width: 6px; height: 6px; border-radius: 50%; background: {color};"></div>{source}</div>'
-                 idx += 1
-            if len(income_sources) > 3:
-                income_bar_html += f'<div>+{len(income_sources)-3} more</div>'
-            income_bar_html += '</div>'
-
-        st.markdown(f"""<div class="stat-card" style="border-left-color: #10B981;"><div class="stat-label">Total Income</div><div class="stat-value" style="color: #10B981;">৳{total_income:,.0f}</div><div class="stat-sub" style="color: #10B981;"><span>💰</span> Earnings</div>{income_bar_html}</div>""", unsafe_allow_html=True)
-    
-    with col2:
-        # Budget vs Spent visualization (Core Budget Only)
-        budget_pct = (core_spent / core_budget_limit * 100) if core_budget_limit > 0 else 0
-        
-        # Dynamic coloring for badge and bar
-        if budget_pct >= 100:
-            badge_bg = "#FEF2F2"
-            badge_text = "#991B1B"
-            bar_color = "#EF4444"
-        elif budget_pct >= 85:
-            badge_bg = "#FFFBEB"
-            badge_text = "#92400E"
-            bar_color = "#F59E0B"
-        else:
-            badge_bg = "#ECFDF5"
-            badge_text = "#065F46"
-            bar_color = "#10B981"
-        
-        remaining_amount = core_budget_limit - core_spent
-        
-        budget_bar_html = f"""<div style="margin-top: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;">
-                <div>
-                    <div style="font-size: 11px; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Spent</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #1E293B;">৳{core_spent:,.0f}</div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 11px; color: #64748B; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Remaining</div>
-                    <div style="font-size: 1.1rem; font-weight: 700; color: {bar_color};">৳{max(0, remaining_amount):,.0f}</div>
-                </div>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <div style="width: 100%; height: 10px; background: #F1F5F9; border-radius: 99px; overflow: hidden;">
-                    <div style="width: {min(budget_pct, 100)}%; height: 100%; background: {bar_color}; border-radius: 99px;"></div>
-                </div>
-                <div style="background: {badge_bg}; color: {badge_text}; padding: 2px 8px; border-radius: 99px; font-size: 0.75rem; font-weight: 700; margin-left: 8px; white-space: nowrap;">{budget_pct:.0f}%</div>
-            </div>
-        </div>"""
-
-        st.markdown(f"""<div class="stat-card" style="border-left-color: {bar_color};"><div class="stat-label">Total Budget</div><div class="stat-value">৳{core_budget_limit:,.0f}</div><div class="stat-sub" style="color: {bar_color};"><span>🎯</span> Monthly Goal</div>{budget_bar_html}</div>""", unsafe_allow_html=True)
-    
-    with col3:
-        is_positive = investable_surplus >= 0
-        color = "#F59E0B" if is_positive else "#EF4444"
-        icon = "🚀" if is_positive else "⚠️"
-        
+        # iOS Reminders Style: Green Card
         st.markdown(f"""
-        <div class="stat-card" style="border-left-color: {color};">
-            <div class="stat-label">Investable Surplus</div>
-            <div class="stat-value" style="color: {color}">৳{investable_surplus:,.0f}</div>
-            <div class="stat-sub" style="color: {color};">
-                <span>{icon}</span> {f'Ready to invest' if is_positive else f'Deficit ৳{abs(investable_surplus):,.0f}'}
+        <div class="stat-card" style="background: linear-gradient(135deg, #34C759 0%, #30B0C7 100%); color: white; border: none;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    💰
+                </div>
+                <div style="font-size: 28px; font-weight: 700; color: white;">
+                    {total_income:,.0f}
+                </div>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); margin-top: 8px;">
+                Income
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.1); border-radius: 99px; overflow: hidden; margin-top: 12px;">
+                <div style="width: {income_pct}%; height: 100%; background: white; border-radius: 99px;"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+    # Card 2: Budget (Blue)
+    with row1_col2:
+        # iOS Reminders Style: Blue Card
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%); color: white; border: none;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    🎯
+                </div>
+                <div style="font-size: 28px; font-weight: 700; color: white;">
+                    {core_budget_limit:,.0f}
+                </div>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); margin-top: 8px;">
+                Budget
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.1); border-radius: 99px; overflow: hidden; margin-top: 12px;">
+                <div style="width: 100%; height: 100%; background: white; border-radius: 99px;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    # Card 3: Spent (Red/Orange)
+    with row2_col1:
+        budget_pct = (core_spent / core_budget_limit * 100) if core_budget_limit > 0 else 0
+        if budget_pct >= 100:
+            bg_gradient = "linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)" # Red/Orange
+        elif budget_pct >= 85:
+            bg_gradient = "linear-gradient(135deg, #FFCC00 0%, #FF9500 100%)" # Orange/Yellow
+        else:
+            bg_gradient = "linear-gradient(135deg, #FFD60A 0%, #FF9F0A 100%)" # Yellow/Orange for spent 
+            
+        spent_width = min(budget_pct, 100)
+        
+        # iOS Reminders Style: Orange/Yellow (Warm) Card
+        st.markdown(f"""
+        <div class="stat-card" style="background: {bg_gradient}; color: white; border: none; margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    💸
+                </div>
+                <div style="font-size: 28px; font-weight: 700; color: white;">
+                    {core_spent:,.0f}
+                </div>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); margin-top: 8px;">
+                Spent
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.1); border-radius: 99px; overflow: hidden; margin-top: 12px;">
+                <div style="width: {spent_width}%; height: 100%; background: white; border-radius: 99px;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Card 4: Remaining (Gray/Blue)
+    with row2_col2:
+        remaining_amount = core_budget_limit - core_spent
+        if remaining_amount < 0:
+             bg_gradient = "linear-gradient(135deg, #FF453A 0%, #FF3B30 100%)" # Red for danger
+             label = "Over Budget"
+             rem_width = 100
+        else:
+             bg_gradient = "linear-gradient(135deg, #8E8E93 0%, #636366 100%)" # System Gray
+             label = "Remaining"
+             rem_width = max(0, min((remaining_amount / core_budget_limit * 100), 100)) if core_budget_limit > 0 else 0
+
+        # iOS Reminders Style: Gray Card
+        st.markdown(f"""
+        <div class="stat-card" style="background: {bg_gradient}; color: white; border: none; margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    📊
+                </div>
+                <div style="font-size: 28px; font-weight: 700; color: white;">
+                    {remaining_amount:,.0f}
+                </div>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); margin-top: 8px;">
+                {label}
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.1); border-radius: 99px; overflow: hidden; margin-top: 12px;">
+                <div style="width: {rem_width}%; height: 100%; background: white; border-radius: 99px;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Surplus Banner
+    is_positive = investable_surplus >= 0
+    surplus_color = "#34C759" if is_positive else "#FF3B30" # iOS Green / Red
+    surplus_icon = "🚀" if is_positive else "⚠️"
+    surplus_bg = "#E4F9E9" if is_positive else "#FFEBEA"
+    
+    st.markdown(f"""
+    <div class="stat-card" style="margin-top: 16px; flex-direction: row; align-items: center; justify-content: space-between; background: {surplus_bg}; border: 1px solid {surplus_color}20;">
+        <div>
+            <div class="stat-label" style="color: {surplus_color}; opacity: 0.9;">Investable Surplus</div>
+            <div class="stat-value" style="color: {surplus_color};">৳{investable_surplus:,.0f}</div>
+        </div>
+        <div style="text-align: right; display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 15px; font-weight: 600; color: {surplus_color};">
+                {f'Ready to invest' if is_positive else f'Deficit'}
+            </div>
+            <div style="font-size: 32px;">{surplus_icon}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.divider()
     
@@ -579,7 +632,7 @@ def main():
 def show_expense_form(category_budgets, current_user):
     st.markdown("""
     <div class="premium-card">
-        <h3 style="margin: 0; color: var(--text-main);">➕ New Transaction</h3>
+        <h3 style="margin: 0; color: var(--ios-text); font-size: 20px; font-weight: 700;">➕ New Transaction</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -739,7 +792,7 @@ def show_expense_form(category_budgets, current_user):
 def show_dashboard(current_month_expenses, all_expenses, category_budgets, current_month_income):
     st.markdown("""
     <div class="premium-card">
-        <h3 style="margin: 0; color: var(--text-main);">📊 Spending Analytics</h3>
+        <h3 style="margin: 0; color: var(--ios-text); font-size: 20px; font-weight: 700;">📊 Spending Analytics</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -773,23 +826,40 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
                 percentage = (spent / limit * 100) if limit > 0 else 0
                 
                 # Dynamic coloring
+                # Dynamic coloring with Gradients
                 if percentage >= 100:
-                    bar_color = "#EF4444" # Red
-                    bg_color = "#FEF2F2"
-                    text_color = "#991B1B"
+                    bar_background = "linear-gradient(90deg, #FF9500 0%, #FF3B30 100%)" 
+                    bg_color = "#FFEBEA"
+                    text_color = "#FF3B30"
                 elif percentage >= 85:
-                    bar_color = "#F59E0B" # Orange
-                    bg_color = "#FFFBEB" 
-                    text_color = "#92400E"
+                    bar_background = "linear-gradient(90deg, #FFCC00 0%, #FF9500 100%)"
+                    bg_color = "#FFF3D6" 
+                    text_color = "#FF9500"
                 else:
-                    bar_color = "#10B981" # Green
-                    bg_color = "#ECFDF5"
-                    text_color = "#065F46"
+                    bar_background = "linear-gradient(90deg, #34C759 0%, #30B0C7 100%)"
+                    bg_color = "#E4F9E9"
+                    text_color = "#34C759"
                 
                 # Cap progress bar width at 100% for visual sanity
                 width_pct = min(percentage, 100)
                 
-                html_card = f"""<div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 1.1rem;">{budget.get('icon', '📦')}</span><span style="font-weight: 600; color: #1E293B; font-size: 0.95rem;">{budget['category']}</span></div><div style="background: {bg_color}; color: {text_color}; padding: 2px 8px; border-radius: 99px; font-size: 0.75rem; font-weight: 700;">{percentage:.1f}%</div></div><div style="width: 100%; height: 8px; background: #F1F5F9; border-radius: 99px; overflow: hidden; margin-bottom: 8px;"><div style="width: {width_pct}%; height: 100%; background: {bar_color}; border-radius: 99px; transition: width 0.5s ease;"></div></div><div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 4px;"><span style="font-weight: 700; color: #1E293B; font-size: 1rem;">৳{spent:,.0f}</span><span style="color: #94A3B8; font-size: 0.8rem;">/ ৳{limit:,.0f}</span></div></div>"""
+                html_card = f"""
+                <div style="background: white; border-bottom: 1px solid #E5E5EA; padding: 12px 4px; margin-bottom: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.2rem; width: 24px; text-align: center;">{budget.get('icon', '📦')}</span>
+                            <span style="font-weight: 600; color: var(--ios-text); font-size: 16px;">{budget['category']}</span>
+                        </div>
+                        <div style="background: {bg_color}; color: {text_color}; padding: 2px 8px; border-radius: 6px; font-size: 13px; font-weight: 600;">{percentage:.0f}%</div>
+                    </div>
+                    <div style="width: 100%; height: 10px; background: #E5E5EA; border-radius: 99px; overflow: hidden; margin-bottom: 6px;">
+                        <div style="width: {width_pct}%; height: 100%; background: {bar_background}; border-radius: 99px;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 4px;">
+                        <span style="font-weight: 600; color: var(--ios-text); font-size: 15px;">৳{spent:,.0f}</span>
+                        <span style="color: var(--ios-text-secondary); font-size: 13px;">/ ৳{limit:,.0f}</span>
+                    </div>
+                </div>"""
                 st.markdown(html_card, unsafe_allow_html=True)
     
     # Charts
@@ -803,18 +873,28 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
             category_data[cat] = category_data.get(cat, 0) + expense['amount']
         
         if category_data:
+            total_spent = sum(category_data.values())
             df_cat = pd.DataFrame(list(category_data.items()), columns=['Category', 'Amount'])
             fig_pie = px.pie(df_cat, values='Amount', names='Category', 
-                           title="Spending by Category",
-                           hole=0.4)
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+                           title=None,
+                           hole=0.4,
+                           color_discrete_sequence=px.colors.qualitative.Pastel)
+            # Enhanced Pie Chart with "Cool" Font and Rounded Labels
+            fig_pie.update_traces(
+                textposition='outside', 
+                textinfo='percent+label',
+                insidetextorientation='horizontal',
+                textfont=dict(family="Arial Black", size=12, color="var(--ios-text)"),
+                marker=dict(line=dict(color='#FFFFFF', width=2)),
+                pull=[0.05] * len(df_cat) # Slightly pull slices apart
+            )
             fig_pie.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font_family="Inter",
-                title_font_size=16,
-                margin=dict(l=0, r=0, t=30, b=0),
-                showlegend=False
+                font_family="Arial Black", # Cool font
+                margin=dict(l=100, r=100, t=40, b=40),
+                showlegend=False,
+                annotations=[dict(text=f"Total<br>৳{total_spent:,.0f}", x=0.5, y=0.5, font_size=14, showarrow=False, font=dict(family="Arial Black", color="var(--ios-text)"))] # Center text
             )
             st.plotly_chart(fig_pie, use_container_width=True)
     
@@ -851,9 +931,53 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
     trend_data = prepare_trend_data(all_expenses, time_frame.lower())
     if trend_data:
         df_trend = pd.DataFrame(trend_data, columns=['Period', 'Amount'])
+        
+        # Forecast for Monthly View
+        if time_frame == "Monthly":
+            current_month_str = datetime.now().strftime('%Y-%m')
+            
+            # Find current month data
+            current_amount = 0
+            for p, a in trend_data:
+                if p == current_month_str:
+                    current_amount = a
+                    break
+            
+            # Simple Forecast: Daily Avg * Days in Month
+            today = datetime.now()
+            days_in_month = (today.replace(day=1) + relativedelta(months=1) - timedelta(days=1)).day
+            current_day = today.day
+            
+            if current_day > 0:
+                daily_avg = current_amount / current_day
+                forecast_amount = daily_avg * days_in_month
+                
+                # Add forecast data row
+                # We want a dotted line from current actual to forecast
+                # But creating a separate trace is cleaner
+                pass 
+
+        # Create figure with simplified approach
         fig_trend = px.area(df_trend, x='Period', y='Amount', 
                           title=f"Spending Trends ({time_frame})",
                           markers=True)
+        
+        # Add Spline Smoothing
+        fig_trend.update_traces(line_shape='spline', line_color='#6366f1', fillcolor='rgba(99, 102, 241, 0.2)')
+
+        # Add Forecast Trace if Monthly
+        if time_frame == "Monthly" and 'forecast_amount' in locals():
+            fig_trend.add_scatter(
+                x=[current_month_str, current_month_str], 
+                y=[current_amount, forecast_amount],
+                mode='lines+markers+text',
+                line=dict(color='#FF9500', dash='dot', width=2),
+                marker=dict(symbol='star', size=10, color='#FF9500'),
+                name='Forecast',
+                text=[f"", f"Forecast: ৳{forecast_amount:,.0f}"],
+                textposition="top center"
+            )
+
         fig_trend.update_layout(
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
@@ -861,9 +985,10 @@ def show_dashboard(current_month_expenses, all_expenses, category_budgets, curre
             title_font_size=16,
             xaxis_title=None,
             yaxis_title=None,
-            margin=dict(l=0, r=0, t=30, b=0)
+            margin=dict(l=0, r=0, t=30, b=0),
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        fig_trend.update_traces(line_color='#6366f1', fillcolor='rgba(99, 102, 241, 0.2)')
         st.plotly_chart(fig_trend, use_container_width=True)
 
 def prepare_trend_data(expenses, time_frame):
@@ -1067,48 +1192,39 @@ def show_history(all_expenses, category_budgets, all_income):
                 else:
                     # Expense List Item
                     with st.container():
-                        st.markdown(f"""
-                        <div style="
-                            background: white;
-                            border-radius: 12px;
-                            padding: 1rem;
-                            margin-bottom: 0.75rem;
-                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                            border: 1px solid #E2E8F0;
-                            display: flex;
-                            align-items: center;
-                            justify-content: space-between;
-                        ">
-                            <div style="display: flex; align-items: center; gap: 1rem;">
-                                <div style="
-                                    background: #F1F5F9;
-                                    width: 40px; height: 40px;
-                                    border-radius: 10px;
-                                    display: flex; align-items: center; justify-content: center;
-                                    font-size: 20px;
-                                ">
-                                    {category_icons.get(expense['category'], '📦')}
-                                </div>
-                                <div>
-                                    <div style="font-weight: 600; color: #1E293B;">{expense['item']}</div>
-                                    <div style="font-size: 12px; color: #64748B;">
-                                        {expense['category']} • {expense['paid_by']} { '• 🔄 Recurring' if expense.get('recurrence_active') else ''}
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-weight: 700; color: #1E293B;">৳{expense['amount']:,.0f}</div>
-                                <div style="font-size: 11px; color: #94A3B8;">{expense['date']}</div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        row_col1, row_col2 = st.columns([5, 1])
+                        with row_col1:
+                            
+                            # Construct HTML manually to ensure no indentation issues
+                            notes_html = f'<div style="font-size: 13px; color: var(--ios-text-secondary); margin-top: 4px; margin-left: 42px;">{expense["notes"]}</div>' if expense.get('notes') else ''
+                            recurrence_html = ' • 🔄' if expense.get('recurrence_active') else ''
+                            
+                            html_content = f'''
+<div style="background: white; border-bottom: 0.5px solid #C6C6C8; padding: 12px 0;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<div style="font-size: 24px; min-width: 30px; text-align: center;">{category_icons.get(expense['category'], '📦')}</div>
+<div>
+<div style="font-weight: 600; font-size: 16px; color: var(--ios-text);">{expense['item']}</div>
+<div style="font-size: 13px; color: var(--ios-text-secondary);">
+{expense['category']} • {expense['paid_by']}{recurrence_html}
+</div>
+</div>
+</div>
+<div style="text-align: right;">
+<div style="font-weight: 600; font-size: 16px; color: var(--ios-text);">-৳{expense['amount']:,.0f}</div>
+<div style="font-size: 13px; color: var(--ios-text-secondary);">{expense['date']}</div>
+</div>
+</div>
+{notes_html}
+</div>'''
+                            st.markdown(html_content, unsafe_allow_html=True)
                         
-                        col_edit, col_delete, _ = st.columns([1, 1, 8])
-                        with col_edit:
+                        with row_col2:
+                            # Action Buttons vertically stacked or side-by-side
                             if st.button("✏️", key=f"edit_btn_{expense_id}", help="Edit"):
                                  st.session_state.editing_expense_id = expense_id
                                  st.rerun()
-                        with col_delete:
                             if st.button("🗑️", key=f"delete_btn_{expense_id}", help="Delete"):
                                 conn = get_db()
                                 c = conn.cursor()
@@ -1164,47 +1280,34 @@ def show_history(all_expenses, category_budgets, all_income):
                 else:
                     # Income List Item
                     with st.container():
-                        st.markdown(f"""
-                        <div style="
-                            background: white;
-                            border-radius: 12px;
-                            padding: 1rem;
-                            margin-bottom: 0.75rem;
-                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                            border: 1px solid #E2E8F0;
-                            border-left: 4px solid #10B981;
-                            display: flex;
-                            align-items: center;
-                            justify-content: space-between;
-                        ">
-                            <div style="display: flex; align-items: center; gap: 1rem;">
-                                <div style="
-                                    background: #ECFDF5;
-                                    width: 40px; height: 40px;
-                                    border-radius: 10px;
-                                    display: flex; align-items: center; justify-content: center;
-                                    font-size: 20px;
-                                ">
-                                    💰
-                                </div>
-                                <div>
-                                    <div style="font-weight: 600; color: #1E293B;">{income['source']}</div>
-                                    <div style="font-size: 12px; color: #64748B;"> Income </div>
-                                </div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-weight: 700; color: #10B981;">+৳{income['amount']:,.0f}</div>
-                                <div style="font-size: 11px; color: #94A3B8;">{income['date']}</div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        row_col1, row_col2 = st.columns([5, 1])
+                        with row_col1:
+                            
+                            # Construct HTML manually
+                            inc_notes_html = f'<div style="font-size: 13px; color: var(--ios-text-secondary); margin-top: 4px; margin-left: 42px;">{income["notes"]}</div>' if income.get('notes') else ''
+                            
+                            html_content = f'''
+<div style="background: white; border-bottom: 0.5px solid #C6C6C8; padding: 12px 0;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<div style="font-size: 24px; min-width: 30px; text-align: center;">💰</div>
+<div>
+<div style="font-weight: 600; font-size: 16px; color: var(--ios-text);">{income['source']}</div>
+<div style="font-size: 13px; color: var(--ios-text-secondary);">{income['date']}</div>
+</div>
+</div>
+<div style="text-align: right;">
+<div style="font-weight: 600; font-size: 16px; color: #34C759;">+৳{income['amount']:,.0f}</div>
+</div>
+</div>
+{inc_notes_html}
+</div>'''
+                            st.markdown(html_content, unsafe_allow_html=True)
                         
-                        col_edit, col_delete, _ = st.columns([1, 1, 8])
-                        with col_edit:
+                        with row_col2:
                             if st.button("✏️", key=f"edit_inc_btn_{income_id}", help="Edit"):
                                  st.session_state.editing_income_id = income_id
                                  st.rerun()
-                        with col_delete:
                             if st.button("🗑️", key=f"delete_inc_btn_{income_id}", help="Delete"):
                                 conn = get_db()
                                 c = conn.cursor()
