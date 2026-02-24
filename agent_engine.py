@@ -11,9 +11,8 @@ import google.generativeai as genai
 def load_secrets():
     secrets_path = os.path.join(".streamlit", "secrets.toml")
     if os.path.exists(secrets_path):
-        import tomllib if hasattr(os, 'tomllib') else None
         try:
-             # Fallback for python < 3.11 if tomllib not found
+             # tomllib is standard in Python 3.11+
              import tomllib
         except ImportError:
              import toml as tomllib
