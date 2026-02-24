@@ -12,6 +12,11 @@ import requests
 import json
 
 # Supabase REST API Configuration
+if "supabase" not in st.secrets:
+    st.error("Missing Supabase Secrets! Please add them to your Streamlit Cloud settings or .streamlit/secrets.toml.")
+    st.info("Required sections: [supabase] and [connections.supabase]")
+    st.stop()
+
 SUPABASE_URL = st.secrets["supabase"]["url"]
 SUPABASE_KEY = st.secrets["supabase"]["api_key"]
 
