@@ -639,7 +639,7 @@ def main():
     """, unsafe_allow_html=True)
     
     # Tabs - Simplified navigation
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "⚙️ Budget Config", "⚙️ Settings"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "🤖 AI Agent (Beta)", "⚙️ Budget Config", "⚙️ Settings"])
     
     with tab1:
         # Get current user from settings for expense form
@@ -653,9 +653,12 @@ def main():
         show_history(all_expenses, category_budgets, all_income)
     
     with tab4:
-        show_budget_config(category_budgets)
+        show_ai_agent()
     
     with tab5:
+        show_budget_config(category_budgets)
+    
+    with tab6:
         show_settings_page(user)
 
 def show_expense_form(category_budgets, current_user):
@@ -1685,6 +1688,48 @@ def show_budget_config(category_budgets):
             
             st.success("Budget configuration updated!")
             st.rerun()
+
+def show_ai_agent():
+    st.markdown("""
+    <div class="premium-card">
+        <h3 style="margin: 0; color: var(--ios-blue);">🤖 AI Budget Assistant</h3>
+        <p style="color: var(--ios-text-secondary); font-size: 14px; margin-top: 4px;">
+            Type naturally to log expenses or income (Beta)
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Check for API Key
+    gemini_key = st.secrets.get("gemini", {}).get("api_key")
+    if not gemini_key or gemini_key == "PASTE_YOUR_GEMINI_API_KEY_HERE":
+        st.warning("⚠️ Gemini API Key is missing. Please add it to your secrets.toml.")
+        st.info("You can get a free key at [aistudio.google.com](https://aistudio.google.com/app/apikey)")
+        return
+
+    # User Input
+    user_msg = st.text_input("Message (e.g., 'Spent 500 on dinner')", placeholder="What happened today?")
+    
+    if st.button("Send to AI Agent", type="primary"):
+        if user_msg:
+            with st.spinner("AI is thinking..."):
+                try:
+                    import agent_engine
+                    # Re-load config in case user just added key
+                    import google.generativeai as genai
+                    genai.configure(api_key=gemini_key)
+                    
+                    response = agent_engine.process_message(user_msg)
+                    st.markdown(f"""
+                    <div style="background: white; padding: 16px; border-radius: 12px; margin-top: 10px; border-left: 4px solid var(--ios-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="font-weight: 600; color: var(--ios-blue); margin-bottom: 8px;">Response:</div>
+                        {response}
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.info("💡 Note: Check the dashboard or history to see the changes.")
+                except Exception as e:
+                    st.error(f"Error communicating with agent: {e}")
+        else:
+            st.warning("Please type something first.")
 
 if __name__ == "__main__":
     # Initialize session state for authentication
