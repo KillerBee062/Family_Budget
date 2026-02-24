@@ -1,17 +1,59 @@
 import streamlit as st
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-import sqlite3
 import os
 import uuid
-import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 import textwrap
+import requests
+import json
 
-DATABASE = 'budget_tracker.db'
+# Supabase REST API Configuration
+SUPABASE_URL = st.secrets["supabase"]["url"]
+SUPABASE_KEY = st.secrets["supabase"]["api_key"]
+
+def supabase_request(method, table, data=None, params=None, headers=None):
+    """Generic helper for Supabase REST API requests"""
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    default_headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+    if headers:
+        default_headers.update(headers)
+    
+    try:
+        response = requests.request(method, url, json=data, params=params, headers=default_headers, timeout=10)
+        if response.status_code >= 400:
+            st.error(f"Supabase {method} error on {table} (Status {response.status_code}): {response.text}")
+            return []
+        return response.json() if response.text else []
+    except Exception as e:
+        st.error(f"Supabase {method} error on {table}: {e}")
+        return []
+
+def supabase_get(table, params=None):
+    return supabase_request("GET", table, params=params)
+
+def supabase_insert(table, data):
+    return supabase_request("POST", table, data=data)
+
+def supabase_upsert(table, data):
+    headers = {"Prefer": "resolution=merge-duplicates,return=representation"}
+    return supabase_request("POST", table, data=data, headers=headers)
+
+def supabase_update(table, data, filters):
+    # filters example: {"id": "eq.123"}
+    return supabase_request("PATCH", table, data=data, params=filters)
+
+def supabase_delete(table, filters):
+    # filters example: {"id": "eq.123"}
+    return supabase_request("DELETE", table, params=filters)
 
 # Page config - Mobile optimized
 st.set_page_config(
@@ -218,84 +260,34 @@ st.markdown("""
 
 # Initialize database
 def init_db():
-    conn = sqlite3.connect(DATABASE)
-    c = conn.cursor()
-    
-    # Expenses table
-    c.execute('''CREATE TABLE IF NOT EXISTS expenses (
-        id TEXT PRIMARY KEY,
-        date TEXT NOT NULL,
-        item TEXT NOT NULL,
-        category TEXT NOT NULL,
-        amount REAL NOT NULL,
-        paid_by TEXT NOT NULL,
-        notes TEXT,
-        recurrence_frequency TEXT,
-        recurrence_next_due TEXT,
-        recurrence_active INTEGER DEFAULT 0
-    )''')
-    
-    # Income table
-    c.execute('''CREATE TABLE IF NOT EXISTS income (
-        id TEXT PRIMARY KEY,
-        date TEXT NOT NULL,
-        source TEXT NOT NULL,
-        amount REAL NOT NULL,
-        notes TEXT
-    )''')
-    
-    # Category budgets table
-    c.execute('''CREATE TABLE IF NOT EXISTS category_budgets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        category TEXT NOT NULL UNIQUE,
-        group_name TEXT NOT NULL,
-        limit_amount REAL NOT NULL,
-        icon TEXT
-    )''')
-    
-    # Settings table
-    c.execute('''CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    )''')
-    
-    # Budget month table
-    c.execute('''CREATE TABLE IF NOT EXISTS budget_month (
-        month TEXT PRIMARY KEY,
-        limit_amount REAL DEFAULT 0
-    )''')
-    
-    conn.commit()
-    
-    # Initialize default category budgets (safe insert)
-    default_budgets = [
-        ('Monthly Rent', 'HOUSING', 15000, '🏠'),
-        ('Service Charge / Maintenance', 'HOUSING', 3000, '🛠️'),
-        ('Electricity / Gas / Water', 'HOUSING', 3000, '⚡'),
-        ('Sinking Fund (Building Repair)', 'HOUSING', 1000, '🏗️'),
-        ('Office Commute (Hadi)', 'TRANSPORT', 3000, '🚌'),
-        ('Office Commute (Ruhi)', 'TRANSPORT', 3000, '🚗'),
-        ("Daughter's School Transport", 'TRANSPORT', 3000, '🚌'),
-        ('Car Maintenance / Driver', 'TRANSPORT', 5000, '🔧'),
-        ('Hadi', 'PERSONAL', 2000, '👤'),
-        ('Hadi (Personal Hangout, Cosmetics)', 'PERSONAL', 3000, '👨'),
-        ('Ruhi (Cream, Accessories, Skincare)', 'PERSONAL', 3000, '👩'),
-        ('Yusra (Diapers, Wipes, Baby Care)', 'PERSONAL', 5000, '👶'),
-        ('Groceries & Food', 'LIVING', 10000, '🛒'),
-        ('Household Help (Maid/Cook)', 'LIVING', 4000, '🧹'),
-        ('Internet / Phone / Subscriptions', 'LIVING', 2000, '📶'),
-        ('Family Hangout', 'LIVING', 4000, '🎉'),
-        ('Other', 'OTHERS', 2000, '📦')
-    ]
-    c.executemany('INSERT OR IGNORE INTO category_budgets (category, group_name, limit_amount, icon) VALUES (?, ?, ?, ?)', default_budgets)
-    conn.commit()
-    
-    conn.close()
+    # Only initialize if category_budgets is empty
+    existing = supabase_get("category_budgets", params={"limit": "1"})
+    if existing:
+        return
 
-def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    # Category budgets initialization
+    default_budgets = [
+        {'category': 'Monthly Rent', 'group_name': 'HOUSING', 'limit_amount': 15000, 'icon': '🏠'},
+        {'category': 'Service Charge / Maintenance', 'group_name': 'HOUSING', 'limit_amount': 3000, 'icon': '🛠️'},
+        {'category': 'Electricity / Gas / Water', 'group_name': 'HOUSING', 'limit_amount': 3000, 'icon': '⚡'},
+        {'category': 'Sinking Fund (Building Repair)', 'group_name': 'HOUSING', 'limit_amount': 1000, 'icon': '🏗️'},
+        {'category': 'Office Commute (Hadi)', 'group_name': 'TRANSPORT', 'limit_amount': 3000, 'icon': '🚌'},
+        {'category': 'Office Commute (Ruhi)', 'group_name': 'TRANSPORT', 'limit_amount': 3000, 'icon': '🚗'},
+        {'category': "Daughter's School Transport", 'group_name': 'TRANSPORT', 'limit_amount': 3000, 'icon': '🚌'},
+        {'category': 'Car Maintenance / Driver', 'group_name': 'TRANSPORT', 'limit_amount': 5000, 'icon': '🔧'},
+        {'category': 'Hadi', 'group_name': 'PERSONAL', 'limit_amount': 2000, 'icon': '👤'},
+        {'category': 'Hadi (Personal Hangout, Cosmetics)', 'group_name': 'PERSONAL', 'limit_amount': 3000, 'icon': '👨'},
+        {'category': 'Ruhi (Cream, Accessories, Skincare)', 'group_name': 'PERSONAL', 'limit_amount': 3000, 'icon': '👩'},
+        {'category': 'Yusra (Diapers, Wipes, Baby Care)', 'group_name': 'PERSONAL', 'limit_amount': 5000, 'icon': '👶'},
+        {'category': 'Groceries & Food', 'group_name': 'LIVING', 'limit_amount': 10000, 'icon': '🛒'},
+        {'category': 'Household Help (Maid/Cook)', 'group_name': 'LIVING', 'limit_amount': 4000, 'icon': '🧹'},
+        {'category': 'Internet / Phone / Subscriptions', 'group_name': 'LIVING', 'limit_amount': 2000, 'icon': '📶'},
+        {'category': 'Family Hangout', 'group_name': 'LIVING', 'limit_amount': 4000, 'icon': '🎉'},
+        {'category': 'Other', 'group_name': 'OTHERS', 'limit_amount': 2000, 'icon': '📦'}
+    ]
+    
+    # Bulk insert default budgets
+    supabase_insert("category_budgets", default_budgets)
 
 def calculate_next_date(date_str: str, frequency: str) -> str:
     """Calculate next recurring date"""
@@ -308,80 +300,58 @@ def calculate_next_date(date_str: str, frequency: str) -> str:
 
 def process_recurring_expenses():
     """Process recurring expenses and create new instances"""
-    conn = get_db()
-    c = conn.cursor()
-    
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now().date()
+    today_str = today.strftime('%Y-%m-%d')
     added_count = 0
     
     # Get all active recurring expenses
-    c.execute('''SELECT * FROM expenses 
-                 WHERE recurrence_active = 1 
-                 AND recurrence_next_due IS NOT NULL 
-                 AND recurrence_next_due <= ?''', (today,))
-    
-    recurring = c.fetchall()
+    params = {
+        "recurrence_active": "eq.1",
+        "recurrence_next_due": "lte." + today_str
+    }
+    recurring = supabase_get("expenses", params=params)
     
     for expense in recurring:
-        expense_dict = dict(expense)
-        next_due = expense_dict['recurrence_next_due']
+        next_due_str = expense['recurrence_next_due']
+        next_due = datetime.strptime(next_due_str, '%Y-%m-%d').date()
         
         # Create expenses while next_due is today or in the past
         while next_due <= today:
             # Create new expense instance
             new_expense_id = str(uuid.uuid4())
-            c.execute('''INSERT INTO expenses 
-                        (id, date, item, category, amount, paid_by, notes, recurrence_frequency, recurrence_next_due, recurrence_active)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                     (new_expense_id, next_due, expense_dict['item'], expense_dict['category'],
-                      expense_dict['amount'], expense_dict['paid_by'], expense_dict['notes'],
-                      expense_dict['recurrence_frequency'], None, 0))
-            
+            new_data = {
+                "id": new_expense_id,
+                "date": next_due.strftime('%Y-%m-%d'),
+                "item": expense['item'],
+                "category": expense['category'],
+                "amount": expense['amount'],
+                "paid_by": expense['paid_by'],
+                "notes": expense.get('notes', ''),
+                "recurrence_frequency": expense['recurrence_frequency'],
+                "recurrence_next_due": None,
+                "recurrence_active": 0
+            }
+            supabase_insert("expenses", new_data)
             added_count += 1
-            next_due = calculate_next_date(next_due, expense_dict['recurrence_frequency'])
+            
+            # Update next_due for iteration
+            next_due_dt_str = calculate_next_date(next_due.strftime('%Y-%m-%d'), expense['recurrence_frequency'])
+            next_due = datetime.strptime(next_due_dt_str, '%Y-%m-%d').date()
         
         # Update the parent expense's next_due date
-        c.execute('''UPDATE expenses 
-                     SET recurrence_next_due = ? 
-                     WHERE id = ?''', (next_due, expense_dict['id']))
-    
-    conn.commit()
-    conn.close()
-    
-    if added_count > 0:
-        sync_to_cloud()
+        supabase_update("expenses", {"recurrence_next_due": next_due.strftime('%Y-%m-%d')}, {"id": f"eq.{expense['id']}"})
         
     return added_count
 
 def get_settings():
     """Get app settings"""
-    conn = get_db()
-    c = conn.cursor()
-    
-    c.execute('SELECT value FROM settings WHERE key = ?', ('user',))
-    user_row = c.fetchone()
-    user = user_row[0] if user_row else None
-    
-    c.execute('SELECT value FROM settings WHERE key = ?', ('googleScriptUrl',))
-    url_row = c.fetchone()
-    # Default URL provided by user
-    default_url = "https://script.google.com/macros/s/AKfycbxi45hDC5UiXLxxdGqNzrfKP9uydfZDb0YVSifE3W-2q9saFiHINQrSeub5QrrCkZkA/exec"
-    google_script_url = url_row[0] if url_row else default_url
-    
-    c.execute('SELECT value FROM settings WHERE key = ?', ('lastSynced',))
-    last_synced_row = c.fetchone()
-    last_synced = last_synced_row[0] if last_synced_row else None
-    
-    conn.close()
-    return user, google_script_url, last_synced
+    user_row = supabase_get("settings", params={"key": "eq.user"})
+    user = user_row[0]['value'] if user_row else None
+    return user
 
 def save_setting(key: str, value: str):
     """Save a setting"""
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
-    conn.commit()
-    conn.close()
+    supabase_upsert("settings", {"key": key, "value": value})
 
 # Initialize database
 if 'db_initialized' not in st.session_state:
@@ -396,45 +366,43 @@ if 'recurring_processed' not in st.session_state:
 # Main App
 def main():
     # Get current month
-    current_month = datetime.now().strftime('%B')
+    current_month_name = datetime.now().strftime('%B')
     current_year = datetime.now().year
-    
-    # Get data
-    conn = get_db()
-    c = conn.cursor()
-    
-    # Get expenses for current month - use year and month number for more reliable comparison
     current_month_num = datetime.now().month
-    c.execute('''SELECT * FROM expenses 
-                 WHERE strftime('%Y', date) = ? 
-                 AND strftime('%m', date) = ?
-                 ORDER BY date DESC''', (str(current_year), f"{current_month_num:02d}"))
     
-    current_month_expenses = [dict(row) for row in c.fetchall()]
+    # Prepare dates for filtering
+    first_day = datetime(current_year, current_month_num, 1).strftime('%Y-%m-%d')
+    if current_month_num == 12:
+        last_day = datetime(current_year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_day = datetime(current_year, current_month_num + 1, 1) - timedelta(days=1)
+    last_day_str = last_day.strftime('%Y-%m-%d')
+
+    # Get expenses for current month
+    params_expenses = {
+        "date": [f"gte.{first_day}", f"lte.{last_day_str}"],
+        "order": "date.desc"
+    }
+    current_month_expenses = supabase_get("expenses", params=params_expenses)
     
     # Get all expenses
-    c.execute('SELECT * FROM expenses ORDER BY date DESC')
-    all_expenses = [dict(row) for row in c.fetchall()]
+    all_expenses = supabase_get("expenses", params={"order": "date.desc", "limit": "1000"})
     
     # Get category budgets
-    c.execute('SELECT * FROM category_budgets ORDER BY group_name, category')
-    category_budgets = [dict(row) for row in c.fetchall()]
+    category_budgets = supabase_get("category_budgets", params={"order": "group_name,category"})
     
     # Get income for current month
-    c.execute('''SELECT * FROM income 
-                 WHERE strftime('%Y', date) = ? 
-                 AND strftime('%m', date) = ?
-                 ORDER BY date DESC''', (str(current_year), f"{current_month_num:02d}"))
-    current_month_income = [dict(row) for row in c.fetchall()]
+    params_income = {
+        "date": [f"gte.{first_day}", f"lte.{last_day_str}"],
+        "order": "date.desc"
+    }
+    current_month_income = supabase_get("income", params=params_income)
 
     # Get all income
-    c.execute('SELECT * FROM income ORDER BY date DESC')
-    all_income = [dict(row) for row in c.fetchall()]
+    all_income = supabase_get("income", params={"order": "date.desc", "limit": "1000"})
 
     # Get settings
-    user, google_script_url, last_synced = get_settings()
-    
-    conn.close()
+    user = get_settings()
     
     # Calculate totals
     total_budget_limit = sum(b['limit_amount'] for b in category_budgets)
@@ -456,7 +424,7 @@ def main():
     st.markdown(f"""
     <div class="header-card">
         <h1>Family Budget</h1>
-        <div style="font-size: 17px; font-weight: 600; color: var(--ios-text-secondary);">{current_month} {current_year}</div>
+        <div style="font-size: 17px; font-weight: 600; color: var(--ios-text-secondary);">{current_month_name} {current_year}</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -606,12 +574,12 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Tabs - including Settings and Live Sheet tab
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "🌐 Live Sheet", "⚙️ Budget Config", "⚙️ Settings & Sync"])
+    # Tabs - Simplified navigation
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Add Expense", "📊 Dashboard", "📋 History", "⚙️ Budget Config", "⚙️ Settings"])
     
     with tab1:
         # Get current user from settings for expense form
-        current_user, _, _ = get_settings()
+        current_user = get_settings()
         show_expense_form(category_budgets, current_user)
     
     with tab2:
@@ -621,13 +589,10 @@ def main():
         show_history(all_expenses, category_budgets, all_income)
     
     with tab4:
-        show_live_sheet(google_script_url)
-
-    with tab5:
         show_budget_config(category_budgets)
     
-    with tab6:
-        show_settings_page(user, google_script_url, last_synced, category_budgets)
+    with tab5:
+        show_settings_page(user)
 
 def show_expense_form(category_budgets, current_user):
     st.markdown("""
@@ -718,27 +683,25 @@ def show_expense_form(category_budgets, current_user):
             if submitted:
                 if expense_item and expense_amount > 0 and selected_category:
                     expense_id = str(uuid.uuid4())
-                    expense_date_str = expense_date.strftime('%Y-%m-%d')
                     
-                    conn = get_db()
-                    c = conn.cursor()
-                    
-                    c.execute('''INSERT INTO expenses 
-                                (id, date, item, category, amount, paid_by, notes, recurrence_frequency, recurrence_next_due, recurrence_active)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                             (expense_id, expense_date_str, expense_item, selected_category,
-                              expense_amount, paid_by, notes, recurrence_frequency, recurrence_next_due, 1 if is_recurring else 0))
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    # Sync to cloud
-                    sync_to_cloud()
+                    expense_data = {
+                        "id": expense_id,
+                        "date": expense_date.strftime('%Y-%m-%d'),
+                        "item": expense_item,
+                        "category": selected_category,
+                        "amount": expense_amount,
+                        "paid_by": paid_by,
+                        "notes": notes,
+                        "recurrence_frequency": recurrence_frequency,
+                        "recurrence_next_due": recurrence_next_due,
+                        "recurrence_active": 1 if is_recurring else 0
+                    }
+                    supabase_insert("expenses", expense_data)
                     
                     # Increment form ID to clear inputs
                     st.session_state.expense_form_id += 1
                     
-                    st.success(f"Expense added successfully! (৳{expense_amount:,.0f} on {expense_date_str})")
+                    st.success(f"Expense added successfully! (৳{expense_amount:,.0f} on {expense_date.strftime('%Y-%m-%d')})")
                     # Force rerun to refresh the page and show new empty form
                     st.rerun()
                 else:
@@ -765,21 +728,18 @@ def show_expense_form(category_budgets, current_user):
             if submitted:
                 if income_source and income_amount > 0:
                     income_id = str(uuid.uuid4())
-                    income_date_str = income_date.strftime('%Y-%m-%d')
                     
-                    conn = get_db()
-                    c = conn.cursor()
+                    income_data = {
+                        "id": income_id,
+                        "date": income_date.strftime('%Y-%m-%d'),
+                        "source": income_source,
+                        "amount": income_amount,
+                        "notes": notes
+                    }
+                    supabase_insert("income", income_data)
                     
-                    c.execute('''INSERT INTO income 
-                                (id, date, source, amount, notes)
-                                VALUES (?, ?, ?, ?, ?)''',
-                             (income_id, income_date_str, income_source, income_amount, notes))
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    # Sync to cloud
-                    sync_to_cloud()
+                    # Increment form ID to clear inputs
+                    st.session_state.income_form_id += 1
                     
                     # Increment form ID to clear inputs
                     st.session_state.income_form_id += 1
@@ -1169,18 +1129,18 @@ def show_history(all_expenses, category_budgets, all_income):
                             # To keep it clean, I'll provide the full block
                             with col_save:
                                 if st.form_submit_button("💾 Save Changes", type="primary"):
-                                    conn = get_db()
-                                    c = conn.cursor()
-                                    c.execute('''UPDATE expenses 
-                                                SET date = ?, item = ?, category = ?, amount = ?, paid_by = ?, notes = ?,
-                                                    recurrence_frequency = ?, recurrence_next_due = ?, recurrence_active = ?
-                                                WHERE id = ?''',
-                                            (edit_date.strftime('%Y-%m-%d'), edit_item, edit_category, edit_amount,
-                                             edit_paid_by, edit_notes, edit_recurrence_frequency, edit_recurrence_next_due,
-                                             1 if edit_is_recurring else 0, expense_id))
-                                    conn.commit()
-                                    conn.close()
-                                    sync_to_cloud()
+                                    updated_data = {
+                                        "date": edit_date.strftime('%Y-%m-%d'),
+                                        "item": edit_item,
+                                        "category": edit_category,
+                                        "amount": edit_amount,
+                                        "paid_by": edit_paid_by,
+                                        "notes": edit_notes,
+                                        "recurrence_frequency": edit_recurrence_frequency,
+                                        "recurrence_next_due": edit_recurrence_next_due,
+                                        "recurrence_active": 1 if edit_is_recurring else 0
+                                    }
+                                    supabase_update("expenses", updated_data, {"id": f"eq.{expense_id}"})
                                     st.session_state.editing_expense_id = None
                                     st.success("Expense updated successfully!")
                                     st.rerun()
@@ -1226,12 +1186,7 @@ def show_history(all_expenses, category_budgets, all_income):
                                  st.session_state.editing_expense_id = expense_id
                                  st.rerun()
                             if st.button("🗑️", key=f"delete_btn_{expense_id}", help="Delete"):
-                                conn = get_db()
-                                c = conn.cursor()
-                                c.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
-                                conn.commit()
-                                conn.close()
-                                sync_to_cloud()
+                                supabase_delete("expenses", {"id": f"eq.{expense_id}"})
                                 st.success("Deleted")
                                 st.rerun()
 
@@ -1263,13 +1218,13 @@ def show_history(all_expenses, category_budgets, all_income):
                             col_save, col_cancel = st.columns(2)
                             with col_save:
                                 if st.form_submit_button("💾 Save Changes", type="primary"):
-                                    conn = get_db()
-                                    c = conn.cursor()
-                                    c.execute('UPDATE income SET date=?, source=?, amount=?, notes=? WHERE id=?',
-                                             (edit_date.strftime('%Y-%m-%d'), edit_source, edit_amount, edit_notes, income_id))
-                                    conn.commit()
-                                    conn.close()
-                                    sync_to_cloud()
+                                    updated_data = {
+                                        "date": edit_date.strftime('%Y-%m-%d'),
+                                        "source": edit_source,
+                                        "amount": edit_amount,
+                                        "notes": edit_notes
+                                    }
+                                    supabase_update("income", updated_data, {"id": f"eq.{income_id}"})
                                     st.session_state.editing_income_id = None
                                     st.success("Income updated!")
                                     st.rerun()
@@ -1309,23 +1264,18 @@ def show_history(all_expenses, category_budgets, all_income):
                                  st.session_state.editing_income_id = income_id
                                  st.rerun()
                             if st.button("🗑️", key=f"delete_inc_btn_{income_id}", help="Delete"):
-                                conn = get_db()
-                                c = conn.cursor()
-                                c.execute('DELETE FROM income WHERE id = ?', (income_id,))
-                                conn.commit()
-                                conn.close()
-                                sync_to_cloud()
+                                supabase_delete("income", {"id": f"eq.{income_id}"})
                                 st.success("Deleted")
                                 st.rerun()
 
-def show_settings_page(user, google_script_url, last_synced, category_budgets):
+def show_settings_page(user):
     st.markdown("""
     <div style="background: white; 
                 padding: 1.5rem; 
                 border-radius: 16px; 
                 margin-bottom: 1.5rem;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="margin: 0 0 1rem 0; font-size: 24px; font-weight: 700;">⚙️ Settings & Sync</h2>
+        <h2 style="margin: 0 0 1rem 0; font-size: 24px; font-weight: 700;">⚙️ Settings</h2>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1349,75 +1299,11 @@ def show_settings_page(user, google_script_url, last_synced, category_budgets):
     
     st.divider()
     
-    # Cloud Sync Section
-    st.markdown("### ☁️ Google Sheets Sync")
-    st.markdown("**Connect to Google Sheets:**")
-    
-    sync_url = st.text_input(
-        "Google Apps Script URL",
-        value=google_script_url,
-        placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec",
-        key="settings_sync_url",
-        help="Deploy your Google Apps Script as a web app and paste the URL here"
-    )
-    
-    col_save, col_sync = st.columns(2)
-    with col_save:
-        if sync_url != google_script_url:
-            if st.button("💾 Save URL", use_container_width=True, key="settings_save_url"):
-                save_setting('googleScriptUrl', sync_url)
-                st.success("URL saved!")
-                st.rerun()
-        elif sync_url:
-            st.success("✓ URL saved")
-    
-    with col_sync:
-        col_pull, col_push = st.columns(2)
-        with col_pull:
-            if st.button("⬇️ Pull", use_container_width=True, key="settings_pull", help="Overwrite local data with Google Sheet data"):
-                with st.spinner("Downloading..."):
-                    if sync_from_cloud(sync_url):
-                        st.success("Pulled!")
-                        st.rerun()
-                    else:
-                        st.error("Pull failed")
-        
-        with col_push:
-            if st.button("⬆️ Push", use_container_width=True, key="settings_push", help="Upload local data to Google Sheet"):
-                with st.spinner("Uploading..."):
-                    if sync_to_cloud():
-                        st.success("Pushed!")
-                        save_setting('lastSynced', datetime.now().isoformat())
-                    else:
-                        st.error("Push failed")
-    
-    if last_synced:
-        st.info(f"🕒 Last synced: {last_synced[:19]}")
-    
-    if not sync_url:
-        st.markdown("""
-        <div style="background-color: #FFF3CD; 
-                    border-left: 4px solid #FF9500; 
-                    padding: 1rem; 
-                    border-radius: 8px; 
-                    margin-top: 1rem;">
-            <p style="margin: 0; font-size: 13px; color: #856404;">
-                <strong>How to set up Google Sheets sync:</strong><br>
-                1. Create a Google Apps Script<br>
-                2. Deploy it as a web app<br>
-                3. Paste the deployment URL above
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.divider()
-    
     # Danger Zone
     st.markdown("### 🚨 Danger Zone")
-    st.write("Resetting the data will delete all expenses and income records from this device.")
+    st.write("Resetting the data will delete all expenses and income records from the database.")
     
     if st.button("🗑️ Reset All Data", type="primary", use_container_width=True):
-        # Confirmation dialog simulation using session state
         st.session_state.confirm_reset = True
         st.rerun()
         
@@ -1426,16 +1312,8 @@ def show_settings_page(user, google_script_url, last_synced, category_budgets):
         col_yes, col_no = st.columns(2)
         with col_yes:
             if st.button("Yes, Delete Everything", type="primary", use_container_width=True):
-                conn = get_db()
-                c = conn.cursor()
-                c.execute('DELETE FROM expenses')
-                c.execute('DELETE FROM income')
-                conn.commit()
-                conn.close()
-                
-                # Sync empty state to cloud
-                if google_script_url:
-                    sync_to_cloud()
+                supabase_delete("expenses", {})
+                supabase_delete("income", {})
                 
                 st.session_state.confirm_reset = False
                 st.success("All data has been reset.")
@@ -1444,88 +1322,6 @@ def show_settings_page(user, google_script_url, last_synced, category_budgets):
             if st.button("Cancel", use_container_width=True):
                 st.session_state.confirm_reset = False
                 st.rerun()
-
-def show_settings_page(user, google_script_url, last_synced, category_budgets):
-    st.markdown("""
-    <div style="background: white; 
-                padding: 1.5rem; 
-                border-radius: 16px; 
-                margin-bottom: 1.5rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="margin: 0 0 1rem 0; font-size: 24px; font-weight: 700;">⚙️ Settings & Sync</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # User selection
-    st.markdown("### 👤 User Profile")
-    selected_user = st.radio(
-        "Select User",
-        ["Hadi", "Ruhi"],
-        index=0 if user == "Hadi" else (1 if user == "Ruhi" else 0),
-        key="settings_user_select",
-        horizontal=True
-    )
-    
-    if selected_user != user:
-        save_setting('user', selected_user)
-        st.success(f"✓ User set to {selected_user}")
-        st.rerun()
-    
-    if user:
-        st.info(f"✓ Currently logged in as **{user}**")
-    
-    st.divider()
-    
-    # Cloud Sync Section
-    st.markdown("### ☁️ Google Sheets Sync")
-    st.markdown("**Connect to Google Sheets:**")
-    
-    sync_url = st.text_input(
-        "Google Apps Script URL",
-        value=google_script_url,
-        placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec",
-        key="settings_sync_url",
-        help="Deploy your Google Apps Script as a web app and paste the URL here"
-    )
-    
-    col_save, col_sync = st.columns(2)
-    with col_save:
-        if sync_url != google_script_url:
-            if st.button("💾 Save URL", use_container_width=True, key="settings_save_url"):
-                save_setting('googleScriptUrl', sync_url)
-                st.success("URL saved!")
-                st.rerun()
-        elif sync_url:
-            st.success("✓ URL saved")
-    
-    with col_sync:
-        if sync_url:
-            if st.button("🔄 Sync Now", use_container_width=True, key="settings_sync_now"):
-                with st.spinner("Syncing..."):
-                    if sync_from_cloud(sync_url):
-                        st.success("Sync completed!")
-                        st.rerun()
-                    else:
-                        st.error("Sync failed. Check your URL.")
-    
-    if last_synced:
-        st.info(f"🕒 Last synced: {last_synced[:19]}")
-    
-    if not sync_url:
-        st.markdown("""
-        <div style="background-color: #FFF3CD; 
-                    border-left: 4px solid #FF9500; 
-                    padding: 1rem; 
-                    border-radius: 8px; 
-                    margin-top: 1rem;">
-            <p style="margin: 0; font-size: 13px; color: #856404;">
-                <strong>How to set up Google Sheets sync:</strong><br>
-                1. Create a Google Apps Script<br>
-                2. Deploy it as a web app<br>
-                3. Paste the deployment URL above
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
 
 def show_live_sheet(google_script_url):
     st.markdown("""
@@ -1688,16 +1484,13 @@ def show_budget_config(category_budgets):
                 })
                 
                 # Save to database
-                conn = get_db()
-                c = conn.cursor()
-                c.execute('''INSERT INTO category_budgets (category, group_name, limit_amount, icon)
-                             VALUES (?, ?, ?, ?)''',
-                         (new_category_name, new_group_name, new_category_limit, new_category_icon or '📦'))
-                conn.commit()
-                conn.close()
-                
-                # Sync to cloud
-                sync_to_cloud()
+                new_cat_data = {
+                    'category': new_category_name,
+                    'group_name': new_group_name,
+                    'limit_amount': new_category_limit,
+                    'icon': new_category_icon or '📦'
+                }
+                supabase_insert("category_budgets", new_cat_data)
                 
                 # Clear form
                 st.session_state.new_category_name = ''
@@ -1795,153 +1588,22 @@ def show_budget_config(category_budgets):
         submitted = st.form_submit_button("💾 Save Changes", type="primary")
         
         if submitted:
-            conn = get_db()
-            c = conn.cursor()
+            # Delete all existing budgets (this is a bit complex in REST, but we can delete all)
+            # Fetch all first to get IDs or just delete without filter if allowed
+            supabase_delete("category_budgets", {})
             
-            # Delete all existing budgets
-            c.execute('DELETE FROM category_budgets')
-            
-            # Insert updated budgets (only those not marked for deletion)
+            # Insert updated budgets
             for budget in updated_budgets:
-                c.execute('''INSERT INTO category_budgets (category, group_name, limit_amount, icon)
-                             VALUES (?, ?, ?, ?)''',
-                         (budget['category'], budget['group'], budget['limit'], budget['icon']))
-            
-            conn.commit()
-            conn.close()
-            
-            # Sync to cloud
-            sync_to_cloud()
+                row_data = {
+                    'category': budget['category'],
+                    'group_name': budget['group'],
+                    'limit_amount': budget['limit'],
+                    'icon': budget['icon']
+                }
+                supabase_insert("category_budgets", row_data)
             
             st.success("Budget configuration updated!")
             st.rerun()
-
-def sync_from_cloud(url: str):
-    """Fetch data from Google Apps Script"""
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            
-            conn = get_db()
-            c = conn.cursor()
-            
-            if 'expenses' in data:
-                c.execute('DELETE FROM expenses')
-                for expense in data['expenses']:
-                    c.execute('''INSERT INTO expenses 
-                                (id, date, item, category, amount, paid_by, notes, 
-                                 recurrence_frequency, recurrence_next_due, recurrence_active)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                             (expense['id'], expense['date'], expense['item'], expense['category'],
-                              expense['amount'], expense['paidBy'], expense.get('notes', ''),
-                              expense.get('recurrence', {}).get('frequency'),
-                              expense.get('recurrence', {}).get('nextDue'),
-                              1 if expense.get('recurrence', {}).get('active') else 0))
-            
-            if 'categories' in data and len(data['categories']) > 0:
-                c.execute('DELETE FROM category_budgets')
-                for cat in data['categories']:
-                    c.execute('''INSERT INTO category_budgets (category, group_name, limit_amount, icon)
-                                 VALUES (?, ?, ?, ?)''',
-                             (cat['category'], cat['group'], cat['limit'], cat.get('icon', '📦')))
-
-            if 'income' in data:
-                c.execute('DELETE FROM income')
-                for inc in data['income']:
-                    c.execute('''INSERT INTO income (id, date, source, amount, notes)
-                                 VALUES (?, ?, ?, ?, ?)''',
-                             (inc['id'], inc['date'], inc['source'], inc['amount'], inc.get('notes', '')))
-            
-            conn.commit()
-            conn.close()
-            
-            save_setting('lastSynced', datetime.now().isoformat())
-            return True
-    except Exception as e:
-        st.error(f"Sync error: {e}")
-        return False
-    return False
-
-def sync_to_cloud():
-    """Push data to Google Apps Script"""
-    user, google_script_url, _ = get_settings()
-    
-    if not google_script_url:
-        return False
-    
-    conn = get_db()
-    c = conn.cursor()
-    
-    # Get all expenses
-    c.execute('SELECT * FROM expenses')
-    expenses = []
-    for row in c.fetchall():
-        expense = dict(row)
-        expense_dict = {
-            'id': expense['id'],
-            'date': expense['date'],
-            'item': expense['item'],
-            'category': expense['category'],
-            'amount': expense['amount'],
-            'paidBy': expense['paid_by'],
-            'notes': expense.get('notes', '')
-        }
-        if expense['recurrence_active']:
-            expense_dict['recurrence'] = {
-                'frequency': expense['recurrence_frequency'],
-                'nextDue': expense['recurrence_next_due'],
-                'active': True
-            }
-        expenses.append(expense_dict)
-    
-    # Get category budgets
-    c.execute('SELECT * FROM category_budgets')
-    categories = []
-    for row in c.fetchall():
-        cat = dict(row)
-        categories.append({
-            'category': cat['category'],
-            'group': cat['group_name'],
-            'limit': cat['limit_amount'],
-            'icon': cat.get('icon', '📦')
-        })
-    
-    # Get income
-    c.execute('SELECT * FROM income')
-    income_list = []
-    for row in c.fetchall():
-        inc = dict(row)
-        income_list.append({
-            'id': inc['id'],
-            'date': inc['date'],
-            'source': inc['source'],
-            'amount': inc['amount'],
-            'notes': inc.get('notes', '')
-        })
-    
-    current_month = datetime.now().strftime('%B')
-    
-    payload = {
-        'expenses': expenses,
-        'income': income_list,
-        'categories': categories,
-        'budgetMonth': current_month,
-        'lastUpdated': datetime.now().isoformat()
-    }
-    
-    conn.close()
-    
-    try:
-        response = requests.post(google_script_url, json=payload, timeout=10)
-        if response.status_code == 200:
-            save_setting('lastSynced', datetime.now().isoformat())
-            return True
-    except Exception as e:
-        print(f"Push sync error: {e}")
-        return False
-    
-    return False
 
 if __name__ == "__main__":
     main()
