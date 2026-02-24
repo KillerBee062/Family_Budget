@@ -60,6 +60,61 @@ def supabase_delete(table, filters):
     # filters example: {"id": "eq.123"}
     return supabase_request("DELETE", table, params=filters)
 
+def supabase_auth(method, email, password):
+    """Helper for Supabase Auth REST API"""
+    # method can be 'signup' or 'login'
+    endpoint = "signup" if method == "signup" else "token?grant_type=password"
+    url = f"{SUPABASE_URL}/auth/v1/{endpoint}"
+    
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "email": email,
+        "password": password
+    }
+    
+    try:
+        response = requests.post(url, json=data, headers=headers, timeout=10)
+        if response.status_code >= 400:
+            error_msg = response.json().get("error_description") or response.json().get("msg") or response.text
+            return {"error": error_msg}
+        return response.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+def show_login_page():
+    st.markdown("""
+        <div style="text-align: center; padding: 20px;">
+            <h1 style="color: var(--ios-blue); font-size: 32px; font-weight: 800;">💰 Family Budget</h1>
+            <p style="color: var(--ios-text-secondary);">Secure Access Required</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            st.markdown("### 🔒 Login")
+            email = st.text_input("Email", placeholder="your@email.com")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Log In", use_container_width=True)
+            
+            if submit:
+                if email and password:
+                    result = supabase_auth("login", email, password)
+                    if "error" in result:
+                        st.error(f"Login failed: {result['error']}")
+                    else:
+                        st.session_state.authenticated = True
+                        st.session_state.user_email = email
+                        st.session_state.user_token = result.get("access_token")
+                        st.success("Login successful!")
+                        st.rerun()
+                else:
+                    st.warning("Please enter both email and password")
+
 # Page config - Mobile optimized
 st.set_page_config(
     page_title="Family Budget Tracker",
@@ -1299,8 +1354,13 @@ def show_settings_page(user):
         st.success(f"✓ User set to {selected_user}")
         st.rerun()
     
-    if user:
-        st.info(f"✓ Currently logged in as **{user}**")
+    if st.session_state.get("authenticated"):
+        st.info(f"✓ Logged in as: **{st.session_state.user_email}**")
+        if st.button("🚪 Log Out", use_container_width=True):
+            st.session_state.authenticated = False
+            st.session_state.user_email = None
+            st.session_state.user_token = None
+            st.rerun()
     
     st.divider()
     
@@ -1611,4 +1671,21 @@ def show_budget_config(category_budgets):
             st.rerun()
 
 if __name__ == "__main__":
-    main()
+    # Initialize session state for authentication
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
+        st.session_state.user_token = None
+    
+    # Initialize form IDs
+    if "expense_form_id" not in st.session_state:
+        st.session_state.expense_form_id = 0
+    if "income_form_id" not in st.session_state:
+        st.session_state.income_form_id = 0
+    if "confirm_reset" not in st.session_state:
+        st.session_state.confirm_reset = False
+
+    if not st.session_state.authenticated:
+        show_login_page()
+    else:
+        main()
