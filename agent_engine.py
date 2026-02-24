@@ -76,11 +76,12 @@ def log_income(source: str, amount: float, notes: str = ""):
     return supabase_request("POST", "income", data=income_data)
 
 # AI Engine
-def process_message(text: str):
-    if not GEMINI_API_KEY:
+def process_message(text: str, api_key: str = None):
+    target_key = api_key or GEMINI_API_KEY
+    if not target_key or target_key == "PASTE_YOUR_GEMINI_API_KEY_HERE":
         return "Error: Gemini API Key missing. Please add it to .streamlit/secrets.toml under [gemini]"
 
-    genai.configure(api_key=GEMINI_API_KEY)
+    genai.configure(api_key=target_key)
     
     # Get available categories for context
     cats = fetch_categories()
@@ -101,8 +102,9 @@ def process_message(text: str):
     Text: "{text}"
     """
     
+    # Using 'gemini-1.5-flash' which is the standard name
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash-latest',
+        model_name='gemini-1.5-flash',
         tools=[log_expense, log_income]
     )
     

@@ -1718,7 +1718,7 @@ def show_ai_agent():
                     import google.generativeai as genai
                     genai.configure(api_key=gemini_key)
                     
-                    response = agent_engine.process_message(user_msg)
+                    response = agent_engine.process_message(user_msg, api_key=gemini_key)
                     st.markdown(f"""
                     <div style="background: white; padding: 16px; border-radius: 12px; margin-top: 10px; border-left: 4px solid var(--ios-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <div style="font-weight: 600; color: var(--ios-blue); margin-bottom: 8px;">Response:</div>
