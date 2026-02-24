@@ -497,7 +497,7 @@ def main():
     
     # Card 1: Income (Green)
     with row1_col1:
-        income_pct = min((total_income / core_budget_limit * 100), 100) if core_budget_limit > 0 else 0
+        income_pct = min((total_income / total_budget_limit * 100), 100) if total_budget_limit > 0 else 0
         
         # iOS Reminders Style: Green Card
         st.markdown(f"""
@@ -521,7 +521,7 @@ def main():
         
     # Card 2: Budget (Blue)
     with row1_col2:
-        # iOS Reminders Style: Blue Card
+        # User requested to see Total Budget
         st.markdown(f"""
         <div class="stat-card" style="background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%); color: white; border: none;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -529,7 +529,7 @@ def main():
                     🎯
                 </div>
                 <div style="font-size: 28px; font-weight: 700; color: white;">
-                    {core_budget_limit:,.0f}
+                    {total_budget_limit:,.0f}
                 </div>
             </div>
             <div style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); margin-top: 8px;">
@@ -543,15 +543,16 @@ def main():
         
     # Card 3: Spent (Red/Orange)
     with row2_col1:
-        budget_pct = (core_spent / core_budget_limit * 100) if core_budget_limit > 0 else 0
-        if budget_pct >= 100:
+        # Use total_spent instead of core_spent to avoid discrepancy with pie chart
+        spent_pct = (total_spent / total_budget_limit * 100) if total_budget_limit > 0 else 0
+        if spent_pct >= 100:
             bg_gradient = "linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)" # Red/Orange
-        elif budget_pct >= 85:
+        elif spent_pct >= 85:
             bg_gradient = "linear-gradient(135deg, #FFCC00 0%, #FF9500 100%)" # Orange/Yellow
         else:
             bg_gradient = "linear-gradient(135deg, #FFD60A 0%, #FF9F0A 100%)" # Yellow/Orange for spent 
             
-        spent_width = min(budget_pct, 100)
+        spent_width = min(spent_pct, 100)
         
         # iOS Reminders Style: Orange/Yellow (Warm) Card
         st.markdown(f"""
@@ -561,7 +562,7 @@ def main():
                     💸
                 </div>
                 <div style="font-size: 28px; font-weight: 700; color: white;">
-                    {core_spent:,.0f}
+                    {total_spent:,.0f}
                 </div>
             </div>
             <div style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); margin-top: 8px;">
@@ -575,15 +576,18 @@ def main():
 
     # Card 4: Remaining (Gray/Blue)
     with row2_col2:
-        remaining_amount = core_budget_limit - core_spent
-        if remaining_amount < 0:
+        # Use total remaining based on all categories
+        remaining_amount_val = total_budget_limit - total_spent
+        if remaining_amount_val < 0:
              bg_gradient = "linear-gradient(135deg, #FF453A 0%, #FF3B30 100%)" # Red for danger
              label = "Over Budget"
              rem_width = 100
+             display_remaining = abs(remaining_amount_val)
         else:
              bg_gradient = "linear-gradient(135deg, #8E8E93 0%, #636366 100%)" # System Gray
              label = "Remaining"
-             rem_width = max(0, min((remaining_amount / core_budget_limit * 100), 100)) if core_budget_limit > 0 else 0
+             rem_width = max(0, min((remaining_amount_val / total_budget_limit * 100), 100)) if total_budget_limit > 0 else 0
+             display_remaining = remaining_amount_val
 
         # iOS Reminders Style: Gray Card
         st.markdown(f"""
@@ -593,7 +597,7 @@ def main():
                     📊
                 </div>
                 <div style="font-size: 28px; font-weight: 700; color: white;">
-                    {remaining_amount:,.0f}
+                    {display_remaining:,.0f}
                 </div>
             </div>
             <div style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); margin-top: 8px;">
@@ -1096,46 +1100,58 @@ def show_history(all_expenses, category_budgets, all_income):
                     # Edit form
                     with st.container():
                         st.subheader("✏️ Edit Expense")
+                        
+                        # Date and Item outside form? Or just group/category?
+                        # Streamlit selectbox with callback MUST be outside form
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            edit_date = st.date_input(
+                                "Date",
+                                value=datetime.strptime(expense['date'], '%Y-%m-%d').date(),
+                                key=f"edit_date_{expense_id}"
+                            )
+                            edit_item = st.text_input(
+                                "Item",
+                                value=expense['item'],
+                                key=f"edit_item_{expense_id}"
+                            )
+                        
+                        with col2:
+                            category_to_group = {b['category']: b['group_name'] for b in category_budgets}
+                            initial_group = category_to_group.get(expense['category'], groups[0])
+                            
+                            group_key = f"edit_group_state_{expense_id}"
+                            if group_key not in st.session_state:
+                                st.session_state[group_key] = initial_group
+                            
+                            edit_group = st.selectbox(
+                                "Category Group",
+                                groups,
+                                index=groups.index(st.session_state[group_key]) if st.session_state[group_key] in groups else 0,
+                                key=f"edit_group_{expense_id}",
+                                on_change=lambda id=expense_id: st.session_state.update({f"edit_group_state_{id}": st.session_state[f"edit_group_{id}"]})
+                            )
+                            
+                            categories_in_group = [b for b in category_budgets if b['group_name'] == edit_group]
+                            category_list = [f"{b.get('icon', '📦')} {b['category']}" for b in categories_in_group]
+                            category_map = {f"{b.get('icon', '📦')} {b['category']}": b['category'] for b in categories_in_group}
+                            
+                            current_cat_display = f"{category_icons.get(expense['category'], '📦')} {expense['category']}"
+                            default_cat_idx = 0
+                            if current_cat_display in category_list:
+                                default_cat_idx = category_list.index(current_cat_display)
+                            
+                            edit_category_display = st.selectbox(
+                                "Category",
+                                category_list,
+                                index=default_cat_idx,
+                                key=f"edit_category_{expense_id}"
+                            )
+                            edit_category = category_map[edit_category_display]
+                        
+                        # Rest of the form
                         with st.form(f"edit_form_{expense_id}"):
-                            col1, col2 = st.columns(2)
-                            
-                            with col1:
-                                edit_date = st.date_input(
-                                    "Date",
-                                    value=datetime.strptime(expense['date'], '%Y-%m-%d').date(),
-                                    key=f"edit_date_{expense_id}"
-                                )
-                                edit_item = st.text_input(
-                                    "Item",
-                                    value=expense['item'],
-                                    key=f"edit_item_{expense_id}"
-                                )
-                            
-                            with col2:
-                                # Group and category selection
-                                edit_group = st.selectbox(
-                                    "Category Group",
-                                    groups,
-                                    index=groups.index(expense.get('group', groups[0])) if expense.get('group') in groups else 0,
-                                    key=f"edit_group_{expense_id}"
-                                )
-                                
-                                categories_in_group = [b for b in category_budgets if b['group_name'] == edit_group]
-                                category_list = [f"{b.get('icon', '📦')} {b['category']}" for b in categories_in_group]
-                                category_map = {f"{b.get('icon', '📦')} {b['category']}": b['category'] for b in categories_in_group}
-                                
-                                current_cat_display = f"{category_icons.get(expense['category'], '📦')} {expense['category']}"
-                                if current_cat_display not in category_list:
-                                    current_cat_display = category_list[0] if category_list else ""
-                                
-                                edit_category_display = st.selectbox(
-                                    "Category",
-                                    category_list,
-                                    index=category_list.index(current_cat_display) if current_cat_display in category_list else 0,
-                                    key=f"edit_category_{expense_id}"
-                                )
-                                edit_category = category_map[edit_category_display]
-                            
                             col3, col4 = st.columns(2)
                             with col3:
                                 edit_amount = st.number_input(
